@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 import { SiteNav } from "@/components/site-nav";
 
@@ -13,6 +14,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body>
         <SiteNav />
         <main className="container">{children}</main>
+        <Analytics />
       </body>
     </html>
   );
