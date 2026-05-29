@@ -1,5 +1,6 @@
 import { ensureSchema } from "@/lib/db";
 import { getPublicStats } from "@/lib/entitlements";
+import { LiveStats } from "@/components/marketing/live-stats";
 
 export const dynamic = "force-dynamic";
 
@@ -8,29 +9,15 @@ export default async function StatsPage() {
   const stats = await getPublicStats();
 
   return (
-    <div>
-      <h1>Статистика dopamine</h1>
-      <p className="label">Обновлено: {new Date(stats.updatedAt).toLocaleString()}</p>
-      <div className="grid-2" style={{ marginTop: "1.5rem" }}>
-        <div className="card">
-          <div className="label">Зарегистрировано</div>
-          <div className="stat-value">{stats.registeredUsers}</div>
-        </div>
-        <div className="card">
-          <div className="label">Привязано устройств</div>
-          <div className="stat-value">{stats.linkedDevices}</div>
-        </div>
-        <div className="card">
-          <div className="label">Онлайн (лаунчер, 5 мин)</div>
-          <div className="stat-value">{stats.onlineDevices}</div>
-        </div>
-        <div className="card">
-          <div className="label">Серверов запущено сейчас</div>
-          <div className="stat-value">{stats.runningServersNow}</div>
-        </div>
+    <div className="site-main--narrow">
+      <div className="page-header">
+        <h1>Статистика dopamine</h1>
+        <p>Агрегированные данные с привязанных лаунчеров (heartbeat)</p>
       </div>
-      <p className="label" style={{ marginTop: "1rem" }}>
-        Режим «серверы только по ключу»: {stats.serversGated ? "включён" : "выключен"}
+      <LiveStats />
+      <p className="label" style={{ marginTop: "1.5rem", textAlign: "center" }}>
+        Обновлено: {new Date(stats.updatedAt).toLocaleString("ru-RU")} · режим «только по ключу»:{" "}
+        {stats.serversGated ? "включён" : "выключен"}
       </p>
     </div>
   );

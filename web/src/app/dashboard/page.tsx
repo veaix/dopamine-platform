@@ -18,6 +18,7 @@ export default async function DashboardPage() {
   const ent = await resolveEntitlements(user);
 
   return (
+    <div className="site-main--narrow">
     <DashboardClient
       user={user}
       entitlements={ent}
@@ -32,5 +33,6 @@ export default async function DashboardPage() {
           lastSeenAt: d.lastSeenAt?.toISOString() ?? null,
         }))}
     />
+    </div>
   );
 }

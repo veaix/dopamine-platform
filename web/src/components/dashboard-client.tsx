@@ -72,12 +72,14 @@ export function DashboardClient({
 
   return (
     <div>
+      <div className="page-header">
       <h1>Личный кабинет</h1>
       <p className="label">
         {user.email} · роль <span className="badge">{user.role}</span>
       </p>
+      </div>
 
-      <div className="grid-2" style={{ marginTop: "1.5rem" }}>
+      <div className="grid-2" style={{ marginTop: "0.5rem" }}>
         <div className="card">
           <div className="label">Создание серверов</div>
           <p style={{ fontSize: "1.25rem", margin: "0.35rem 0" }}>

@@ -33,8 +33,11 @@ export function AuthForm({ mode }: { mode: Mode }) {
   }
 
   return (
-    <form onSubmit={submit} className="card" style={{ maxWidth: 420 }}>
+    <form onSubmit={submit}>
       <h2>{mode === "login" ? "Вход" : "Регистрация"}</h2>
+      <p className="label" style={{ marginBottom: "1.25rem" }}>
+        {mode === "login" ? "Добро пожаловать обратно" : "Создайте аккаунт dopamine"}
+      </p>
       <div className="form-row">
         <label className="label">Email</label>
         <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
@@ -50,7 +53,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
         />
       </div>
       {error && <p className="error">{error}</p>}
-      <button type="submit" className="btn btn-primary" disabled={loading}>
+      <button type="submit" className="btn btn-primary" style={{ width: "100%" }} disabled={loading}>
         {loading ? "…" : mode === "login" ? "Войти" : "Зарегистрироваться"}
       </button>
     </form>

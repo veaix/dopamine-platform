@@ -13,5 +13,8 @@
     "db:push": "npm run db:push -w web",
     "db:seed": "npm run db:seed -w web",
     "typecheck": "npm run typecheck -w web && npm run typecheck -w @dopamine/account-sdk"
+  },
+  "dependencies": {
+    "@vercel/analytics": "^2.0.1"
   }
 }

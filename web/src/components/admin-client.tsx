@@ -74,8 +74,11 @@ export function AdminClient({ initialServersGated }: { initialServersGated: bool
   }
 
   return (
-    <div>
+    <div className="site-main--narrow">
+      <div className="page-header">
       <h1>Админ-панель</h1>
+      <p className="label">Управление ключами, пользователями и доступом к серверам</p>
+      </div>
 
       <div className="card">
         <h3>Глобальные настройки</h3>
