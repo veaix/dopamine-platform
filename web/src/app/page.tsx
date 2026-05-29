@@ -22,6 +22,9 @@ export default function HomePage() {
         <Link className="btn" href="/stats">
           Статистика
         </Link>
+        <a className="btn" href="https://dopamine.cfd/dashboard">
+          Кабинет
+        </a>
       </div>
 
       <div className="grid-2" style={{ marginTop: "2.5rem" }}>

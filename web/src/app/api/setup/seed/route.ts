@@ -14,17 +14,29 @@ export const POST = withSchema(async (req) => {
   }
 
   const db = getDb();
-  const existing = await db.select().from(users).limit(1);
-  if (existing[0]) return json({ ok: true, skipped: true });
-
   const email = process.env.CREATOR_EMAIL;
   const password = process.env.CREATOR_PASSWORD;
   if (!email || !password) return err("missing_creator_env", 500);
 
+  const normalized = email.toLowerCase();
+  const byEmail = await db.select().from(users).where(eq(users.email, normalized)).limit(1);
+
+  if (byEmail[0]) {
+    await db.update(users).set({ role: "creator" }).where(eq(users.email, normalized));
+    await ensureUserEntitlement(byEmail[0].id);
+    if ((await getAppSetting("servers_gated", "")) === "") {
+      await setAppSetting("servers_gated", "true");
+    }
+    return json({ ok: true, promoted: true, email: normalized });
+  }
+
+  const existing = await db.select().from(users).limit(1);
+  if (existing[0]) return json({ ok: true, skipped: true });
+
   const id = nanoid();
   await db.insert(users).values({
     id,
-    email: email.toLowerCase(),
+    email: normalized,
     passwordHash: await hashPassword(password),
     role: "creator",
   });
@@ -33,5 +45,5 @@ export const POST = withSchema(async (req) => {
     await setAppSetting("servers_gated", "true");
   }
 
-  return json({ ok: true, created: true, email: email.toLowerCase() });
+  return json({ ok: true, created: true, email: normalized });
 });
