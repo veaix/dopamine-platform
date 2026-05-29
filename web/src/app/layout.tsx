@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { SiteNav } from "@/components/site-nav";
+import { Analytics } from "@vercel/analytics/next";
 
 export const metadata: Metadata = {
   title: "dopamine — портал аккаунта",
@@ -13,6 +14,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body>
         <SiteNav />
         <main className="container">{children}</main>
+        <Analytics />
       </body>
     </html>
   );
