@@ -1,0 +1,17 @@
+{
+  "name": "dopamine-platform",
+  "private": true,
+  "version": "1.0.0",
+  "description": "dopamine launcher account portal, API, and launcher integration (separate from minecraft-launcher repo)",
+  "workspaces": [
+    "web",
+    "packages/account-sdk"
+  ],
+  "scripts": {
+    "dev": "npm run dev -w web",
+    "build": "npm run build -w web",
+    "db:push": "npm run db:push -w web",
+    "db:seed": "npm run db:seed -w web",
+    "typecheck": "npm run typecheck -w web && npm run typecheck -w @dopamine/account-sdk"
+  }
+}

@@ -1,0 +1,10 @@
+node_modules/
+.env
+.env.local
+web/.env.local
+web/data/
+web/.next/
+dist/
+*.db
+*.db-journal
+.DS_Store
