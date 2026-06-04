@@ -167,6 +167,9 @@ try {
   await run(`CREATE INDEX IF NOT EXISTS idx_login_events_user ON login_events (user_id, created_at)`);
   await run(`CREATE INDEX IF NOT EXISTS idx_profile_views_target ON profile_views (target_user_id, viewed_at)`);
   await run(`CREATE INDEX IF NOT EXISTS idx_users_playtime ON users (hidden_from_leaderboards, playtime_seconds)`);
+  await run(
+    `CREATE INDEX IF NOT EXISTS idx_profile_reactions_target ON profile_reactions (target_user_id, reaction)`,
+  );
 
   console.log("[migrate] done");
 } catch (e) {

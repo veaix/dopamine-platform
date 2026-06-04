@@ -91,16 +91,19 @@ async function rankByReaction(
   reaction: "like" | "dislike",
   userCount: number,
 ) {
-  const reactionCount = sql<number>`(
-    select count(*) from ${schema.profileReactions}
-    where ${schema.profileReactions.targetUserId} = ${schema.users.id}
-    and ${schema.profileReactions.reaction} = ${reaction}
-  )`;
-
-  const [{ count }] = await db
-    .select({ count: sql<number>`count(*)` })
-    .from(schema.users)
-    .where(and(visible, sql`${reactionCount} > ${userCount}`));
+  const [{ count }] = await db.select({
+    count: sql<number>`(
+      select count(*) from (
+        select ${schema.profileReactions.targetUserId}
+        from ${schema.profileReactions}
+        inner join ${schema.users} on ${schema.users.id} = ${schema.profileReactions.targetUserId}
+        where ${schema.profileReactions.reaction} = ${reaction}
+          and ${schema.users.hiddenFromLeaderboards} = 0
+        group by ${schema.profileReactions.targetUserId}
+        having count(${schema.profileReactions.id}) > ${userCount}
+      )
+    )`,
+  });
 
   return {
     rank: Number(count) + 1,
@@ -108,6 +111,21 @@ async function rankByReaction(
     avatarUrl: user.avatarUrl,
     value: userCount,
   };
+}
+
+function topByReaction(reaction: "like" | "dislike") {
+  return db
+    .select({
+      nickname: schema.users.nickname,
+      avatarUrl: schema.users.avatarUrl,
+      value: sql<number>`count(${schema.profileReactions.id})`,
+    })
+    .from(schema.profileReactions)
+    .innerJoin(schema.users, eq(schema.users.id, schema.profileReactions.targetUserId))
+    .where(and(eq(schema.profileReactions.reaction, reaction), visible))
+    .groupBy(schema.users.id)
+    .orderBy(desc(sql<number>`count(${schema.profileReactions.id})`))
+    .limit(TOP_LIMIT);
 }
 
 const getCachedTopLists = unstable_cache(
@@ -123,36 +141,8 @@ const getCachedTopLists = unstable_cache(
         .where(visible)
         .orderBy(desc(schema.users.playtimeSeconds))
         .limit(TOP_LIMIT),
-      db
-        .select({
-          nickname: schema.users.nickname,
-          avatarUrl: schema.users.avatarUrl,
-          value: sql<number>`count(${schema.profileReactions.id})`,
-        })
-        .from(schema.users)
-        .leftJoin(
-          schema.profileReactions,
-          sql`${schema.profileReactions.targetUserId} = ${schema.users.id} and ${schema.profileReactions.reaction} = 'like'`,
-        )
-        .where(visible)
-        .groupBy(schema.users.id)
-        .orderBy(desc(sql`count(${schema.profileReactions.id})`))
-        .limit(TOP_LIMIT),
-      db
-        .select({
-          nickname: schema.users.nickname,
-          avatarUrl: schema.users.avatarUrl,
-          value: sql<number>`count(${schema.profileReactions.id})`,
-        })
-        .from(schema.users)
-        .leftJoin(
-          schema.profileReactions,
-          sql`${schema.profileReactions.targetUserId} = ${schema.users.id} and ${schema.profileReactions.reaction} = 'dislike'`,
-        )
-        .where(visible)
-        .groupBy(schema.users.id)
-        .orderBy(desc(sql`count(${schema.profileReactions.id})`))
-        .limit(TOP_LIMIT),
+      topByReaction("like"),
+      topByReaction("dislike"),
       db
         .select({
           nickname: schema.users.nickname,
@@ -181,16 +171,25 @@ const getCachedTopLists = unstable_cache(
   { revalidate: CACHE_SECONDS },
 );
 
-export async function getLeaderboards(viewer: {
-  id: string;
-  nickname: string;
-  avatarUrl: string | null;
-  playtimeSeconds: number;
-  availableServerSlots: number;
-  coinsBalance: number;
-  hiddenFromLeaderboards: boolean;
-} | null): Promise<LeaderboardsData> {
-  const { byHours, likesRaw, dislikesRaw, byServerSlots, byCoins } = await getCachedTopLists();
+const getCachedLeaderboardsAnonymous = unstable_cache(
+  async () => buildLeaderboards(null, await getCachedTopLists()),
+  ["leaderboards-anonymous"],
+  { revalidate: CACHE_SECONDS },
+);
+
+async function buildLeaderboards(
+  viewer: {
+    id: string;
+    nickname: string;
+    avatarUrl: string | null;
+    playtimeSeconds: number;
+    availableServerSlots: number;
+    coinsBalance: number;
+    hiddenFromLeaderboards: boolean;
+  } | null,
+  lists: Awaited<ReturnType<typeof getCachedTopLists>>,
+): Promise<LeaderboardsData> {
+  const { byHours, likesRaw, dislikesRaw, byServerSlots, byCoins } = lists;
 
   let meHours: MeRank | null = null;
   let meLikes: MeRank | null = null;
@@ -218,4 +217,17 @@ export async function getLeaderboards(viewer: {
     byAvailableServerSlots: buildCategory(mapRows(byServerSlots), meSlots, nick),
     byCoins: buildCategory(mapRows(byCoins), meCoins, nick),
   };
+}
+
+export async function getLeaderboards(viewer: {
+  id: string;
+  nickname: string;
+  avatarUrl: string | null;
+  playtimeSeconds: number;
+  availableServerSlots: number;
+  coinsBalance: number;
+  hiddenFromLeaderboards: boolean;
+} | null): Promise<LeaderboardsData> {
+  if (!viewer) return getCachedLeaderboardsAnonymous();
+  return buildLeaderboards(viewer, await getCachedTopLists());
 }
