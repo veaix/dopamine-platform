@@ -20,14 +20,14 @@ export default async function OpenGraphImage() {
           flexDirection: "column",
           alignItems: "center",
           justifyContent: "center",
-          background: "linear-gradient(135deg, #101218 0%, #1c2130 50%, #101218 100%)",
+          background: "linear-gradient(135deg, #030508 0%, #0a1628 50%, #030508 100%)",
           fontFamily: "system-ui, sans-serif",
         }}
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={logoSrc} width={180} height={180} alt="" style={{ marginBottom: 32 }} />
         <div style={{ fontSize: 56, fontWeight: 700, color: "#e8f4f8", marginBottom: 16 }}>dopamine</div>
-        <div style={{ fontSize: 32, color: "#b4a8ff" }}>Minecraft launcher for Windows</div>
+        <div style={{ fontSize: 32, color: "#22d3ee" }}>Minecraft launcher for Windows</div>
       </div>
     ),
     { ...size },

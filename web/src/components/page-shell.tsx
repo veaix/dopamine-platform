@@ -24,6 +24,10 @@ export function PageShell({
 
   return (
     <main className={`site-page page page-enter${narrow ? " page-narrow" : ""}${className ? ` ${className}` : ""}`}>
+      <div className="site-page-bg" aria-hidden>
+        <span className="site-page-orb site-page-orb--1" />
+        <span className="site-page-orb site-page-orb--2" />
+      </div>
       {decor ? <PageDecor variant={decor} /> : null}
       <div className="site-page-inner">
         {hasHead ? (

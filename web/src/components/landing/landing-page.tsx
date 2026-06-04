@@ -6,6 +6,7 @@ import { ScrollReveal } from "@/components/landing/scroll-reveal";
 import { AccountMockup, ModsMockup, PlayMockup, ServerMockup } from "@/components/landing/mockups";
 import { DownloadButton } from "@/components/download-button";
 import { SocialLinks } from "@/components/social-links";
+import { PageDecor } from "@/components/page-decor";
 import { useAuth } from "@/components/providers/auth-provider";
 
 type LandingPageProps = {
@@ -53,6 +54,7 @@ export function LandingPage({ releaseTag, setupSize }: LandingPageProps) {
 
   return (
     <main className="landing">
+      <PageDecor variant="landing" />
       <section className="landing-hero" id="download">
         <div className="landing-hero-bg" aria-hidden>
           <span className="landing-orb landing-orb--1" />
