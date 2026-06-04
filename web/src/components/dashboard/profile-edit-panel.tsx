@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { NICKNAME_MAX_LENGTH } from "@/lib/nickname";
 import type { DashboardUser } from "@/server/dashboard/profile";
+import { AvatarImg } from "@/components/avatar-img";
 
 export function ProfileEditPanel({ me, onUpdated }: { me: DashboardUser; onUpdated: () => void }) {
   const [nickname, setNickname] = useState(me.nickname);
@@ -10,6 +11,7 @@ export function ProfileEditPanel({ me, onUpdated }: { me: DashboardUser; onUpdat
   const [msg, setMsg] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [avatarRev, setAvatarRev] = useState(0);
 
   async function uploadAvatar(file: File) {
     if (file.size > 220_000) {
@@ -35,6 +37,7 @@ export function ProfileEditPanel({ me, onUpdated }: { me: DashboardUser; onUpdat
           if (!r.ok) setError(d.error ?? "Ошибка загрузки");
           else {
             setMsg("Аватар обновлён");
+            setAvatarRev(Date.now());
             onUpdated();
           }
         })
@@ -93,12 +96,7 @@ export function ProfileEditPanel({ me, onUpdated }: { me: DashboardUser; onUpdat
       <section className="card dash-panel">
         <h2>Аватар</h2>
         <div className="dash-avatar-edit">
-          {me.avatarUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={me.avatarUrl} alt="" className="avatar xl" />
-          ) : (
-            <div className="avatar xl placeholder">{me.nickname[0]?.toUpperCase()}</div>
-          )}
+          <AvatarImg userId={me.id} nickname={me.nickname} size="xl" cacheBust={avatarRev || undefined} />
           <label className="btn secondary file">
             {busy ? "Загрузка…" : "Загрузить новый аватар"}
             <input
@@ -115,7 +113,7 @@ export function ProfileEditPanel({ me, onUpdated }: { me: DashboardUser; onUpdat
           <button
             type="button"
             className="btn ghost sm"
-            disabled={busy || !me.avatarUrl}
+            disabled={busy || !me.hasAvatar}
             onClick={() =>
               void fetch("/api/me", {
                 method: "PATCH",
@@ -126,6 +124,7 @@ export function ProfileEditPanel({ me, onUpdated }: { me: DashboardUser; onUpdat
                 if (!r.ok) setError(d.error ?? "Ошибка");
                 else {
                   setMsg("Аватар удалён");
+                  setAvatarRev(Date.now());
                   onUpdated();
                 }
               })

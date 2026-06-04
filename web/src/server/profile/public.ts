@@ -4,14 +4,14 @@ import { parseSocialLinks } from "@/lib/social";
 import { getFriendRelation, getProfileReactionCounts } from "@/lib/profile-stats";
 import { getRecentProfileViewers, recordProfileView } from "@/server/profile/views";
 import { findUserProfileByNickname } from "@/server/profile/lookup";
-import { trimAvatarUrl } from "@/lib/trim-avatar";
 import { isAdmin } from "@/lib/admin";
 import { isEmailVerifiedForAuth } from "@/server/auth/email-verification";
 
 export type PublicProfile = {
+  targetUserId: string;
   nickname: string;
   role: string;
-  avatarUrl: string | null;
+  hasAvatar: boolean;
   bio: string | null;
   social: ReturnType<typeof parseSocialLinks>;
   playtimeSeconds: number;
@@ -57,7 +57,7 @@ export async function getPublicProfileCore(
     targetUserId: target.id,
     nickname: target.nickname,
     role: target.role,
-    avatarUrl: trimAvatarUrl(target.avatarUrl),
+    hasAvatar: target.hasAvatar,
     bio: target.bio,
     social: parseSocialLinks(target.socialLinksJson),
     playtimeSeconds: target.playtimeSeconds,
@@ -78,8 +78,7 @@ export async function getPublicProfile(
   if (!core) return null;
 
   const recentViewers = await getRecentProfileViewers(core.targetUserId);
-  const { targetUserId: _id, ...rest } = core;
-  return { ...rest, recentViewers };
+  return { ...core, recentViewers };
 }
 
 export async function recordProfileViewForNickname(

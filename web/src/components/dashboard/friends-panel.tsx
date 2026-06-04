@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import type { FriendsData } from "@/server/friends/bundle";
 import type { OwnedGiftKey } from "@/server/keys/inventory";
+import { AvatarImg } from "@/components/avatar-img";
 
 function mapGiftableKeys(keys: { id: string; grantServers: number; giftStatus: string }[]) {
   const available = keys.filter((k) => k.giftStatus === "available");
@@ -168,7 +169,7 @@ export function FriendsPanel({
           <ul className="dash-friend-list">
             {incomingGifts.map((g) => (
               <li key={g.giftId} className="dash-friend-item dash-gift-item">
-                <FriendRow nickname={g.nickname} avatarUrl={g.avatarUrl} />
+                <FriendRow userId={g.userId} nickname={g.nickname} />
                 <span className="muted">
                   ключ · {g.grantServers} сервер{g.grantCoins ? ` + ${g.grantCoins} 🪙` : ""}
                 </span>
@@ -202,7 +203,7 @@ export function FriendsPanel({
           <ul className="dash-friend-list">
             {outgoingGifts.map((g) => (
               <li key={g.giftId} className="dash-friend-item">
-                <FriendRow nickname={g.nickname} avatarUrl={g.avatarUrl} />
+                <FriendRow userId={g.userId} nickname={g.nickname} />
                 <span className="muted">ожидает ответа · {g.grantServers} сервер</span>
                 <button
                   type="button"
@@ -224,7 +225,7 @@ export function FriendsPanel({
           <ul className="dash-friend-list">
             {incoming.map((r) => (
               <li key={r.requestId} className="dash-friend-item">
-                <FriendRow nickname={r.nickname} avatarUrl={r.avatarUrl} />
+                <FriendRow userId={r.userId} nickname={r.nickname} />
                 <div className="row">
                   <button
                     type="button"
@@ -255,7 +256,7 @@ export function FriendsPanel({
           <ul className="dash-friend-list">
             {outgoing.map((r) => (
               <li key={r.requestId} className="dash-friend-item">
-                <FriendRow nickname={r.nickname} avatarUrl={r.avatarUrl} />
+                <FriendRow userId={r.userId} nickname={r.nickname} />
                 <button
                   type="button"
                   className="btn sm ghost"
@@ -285,7 +286,7 @@ export function FriendsPanel({
           <ul className="dash-friend-list">
             {friends.map((f) => (
               <li key={f.userId} className="dash-friend-item dash-friend-actions">
-                <FriendRow nickname={f.nickname} avatarUrl={f.avatarUrl} />
+                <FriendRow userId={f.userId} nickname={f.nickname} />
                 <div className="dash-friend-buttons">
                   {giftableKeys.length > 0 ? (
                     <div className="row">
@@ -336,15 +337,10 @@ export function FriendsPanel({
   );
 }
 
-function FriendRow({ nickname, avatarUrl }: { nickname: string; avatarUrl: string | null }) {
+function FriendRow({ userId, nickname }: { userId: string; nickname: string }) {
   return (
     <div className="dash-friend-row">
-      {avatarUrl ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={avatarUrl} alt="" className="avatar sm" />
-      ) : (
-        <div className="avatar sm placeholder">{nickname[0]?.toUpperCase()}</div>
-      )}
+      <AvatarImg userId={userId} nickname={nickname} size="sm" />
       <Link href={`/u/${nickname}`} prefetch={false}>
         {nickname}
       </Link>

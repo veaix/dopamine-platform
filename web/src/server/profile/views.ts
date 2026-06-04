@@ -3,8 +3,8 @@ import { db, schema } from "@/server/db";
 import { newId } from "@/server/utils/ids";
 
 export type ProfileViewerEntry = {
+  userId: string;
   nickname: string;
-  avatarUrl: string | null;
   viewedAt: string;
   reaction: "like" | "dislike" | null;
 };
@@ -80,8 +80,8 @@ export async function getRecentProfileViewers(
       const u = userById.get(v.viewerUserId);
       if (!u) return null;
       return {
+        userId: u.id,
         nickname: u.nickname,
-        avatarUrl: null,
         viewedAt: v.viewedAt.toISOString(),
         reaction: reactionByViewer.get(v.viewerUserId) ?? null,
       };

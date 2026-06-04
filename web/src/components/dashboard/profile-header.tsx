@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { DashboardUser } from "@/server/dashboard/profile";
+import { AvatarImg } from "@/components/avatar-img";
 
 export function ProfileHeader({ me }: { me: DashboardUser }) {
   const hours = Math.floor(me.playtimeSeconds / 3600);
@@ -7,12 +8,7 @@ export function ProfileHeader({ me }: { me: DashboardUser }) {
   return (
     <section className="card dash-profile">
       <div className="dash-profile-main">
-        {me.avatarUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={me.avatarUrl} alt="" className="avatar xl" />
-        ) : (
-          <div className="avatar xl placeholder">{me.nickname[0]?.toUpperCase()}</div>
-        )}
+        <AvatarImg userId={me.id} nickname={me.nickname} size="xl" />
         <div className="dash-profile-info">
           <h1 className="dash-nickname">{me.nickname}</h1>
           <p className="muted dash-email">{me.email}</p>

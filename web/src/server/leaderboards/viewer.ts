@@ -4,7 +4,6 @@ export function toLeaderboardViewer(user: SessionDbUser) {
   return {
     id: user.id,
     nickname: user.nickname,
-    avatarUrl: null as string | null,
     playtimeSeconds: user.playtimeSeconds,
     availableServerSlots: user.availableServerSlots,
     coinsBalance: user.coinsBalance,

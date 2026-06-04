@@ -18,11 +18,9 @@ export default async function PublicProfilePage({ params }: Props) {
     after(() => recordProfileViewForNickname(nickname, viewer.id));
   }
 
-  const { targetUserId: _tid, ...initialProfile } = profile;
-
   return (
     <PageShell className="page-profile" decor="profile">
-      <ProfilePublic initialProfile={{ ...initialProfile, recentViewers: [] }} loadViewersLazy />
+      <ProfilePublic initialProfile={{ ...profile, recentViewers: [] }} loadViewersLazy />
     </PageShell>
   );
 }

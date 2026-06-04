@@ -10,6 +10,7 @@ import type { ProfileViewerEntry } from "@/server/profile/views";
 import type { PublicProfile } from "@/server/profile/public";
 import { BrokenHeartIcon, HeartIcon } from "@/components/reaction-icons";
 import { getPublicRoleBadge } from "@/lib/role-labels";
+import { AvatarImg } from "@/components/avatar-img";
 
 function applyReactionToggle(
   prev: PublicProfile,
@@ -97,17 +98,7 @@ export function ProfilePublic({
 
       <div className="profile-head">
 
-        {p.avatarUrl ? (
-
-          // eslint-disable-next-line @next/next/no-img-element
-
-          <img src={p.avatarUrl} alt="" className="avatar lg" />
-
-        ) : (
-
-          <div className="avatar lg placeholder">{p.nickname[0]?.toUpperCase()}</div>
-
-        )}
+        <AvatarImg userId={p.targetUserId} nickname={p.nickname} size="lg" />
 
         <div>
           <div className="profile-name-row">
@@ -291,21 +282,8 @@ export function ProfilePublic({
                 <li key={`${v.nickname}-${v.viewedAt}`} className="profile-viewer-item">
 
                   <Link href={`/u/${v.nickname}`} className="profile-viewer-row">
-
-                    {v.avatarUrl ? (
-
-                      // eslint-disable-next-line @next/next/no-img-element
-
-                      <img src={v.avatarUrl} alt="" className="avatar sm" />
-
-                    ) : (
-
-                      <div className="avatar sm placeholder">{v.nickname[0]?.toUpperCase()}</div>
-
-                    )}
-
+                    <AvatarImg userId={v.userId} nickname={v.nickname} size="sm" />
                     <span className="profile-viewer-name">{v.nickname}</span>
-
                   </Link>
 
                   <div className="profile-viewer-meta">

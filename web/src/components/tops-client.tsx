@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
+import { AvatarImg } from "@/components/avatar-img";
 import type { FastLeaderboards, LeaderboardsData, SlowLeaderboards } from "@/server/leaderboards";
 import { mergeMeRanks } from "@/lib/leaderboards-merge";
 import {
@@ -225,7 +226,7 @@ function TopList({
           top.map((r, i) => (
             <li key={r.nickname}>
               <span className="rank">{i + 1}</span>
-              <div className="avatar sm placeholder">{r.nickname[0]?.toUpperCase()}</div>
+              <AvatarImg userId={r.userId} nickname={r.nickname} size="sm" />
               <Link href={`/u/${r.nickname}`} prefetch={false}>
                 {r.nickname}
               </Link>
@@ -239,7 +240,7 @@ function TopList({
           <p className="top-me-label">Ваше место</p>
           <div className="top-me-row">
             <span className="rank">{me.rank}</span>
-            <div className="avatar sm placeholder">{me.nickname[0]?.toUpperCase()}</div>
+            <AvatarImg userId={me.userId} nickname={me.nickname} size="sm" />
             <Link href={`/u/${me.nickname}`} prefetch={false}>
               {me.nickname}
             </Link>

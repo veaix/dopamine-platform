@@ -4,7 +4,6 @@ import { db } from "@/server/db";
 import { getProfileReactionCounts } from "@/lib/profile-stats";
 import { getTrialServerInfoForUser, type TrialServerInfo } from "@/server/trial-server";
 import { parseSocialLinks } from "@/lib/social";
-import { trimAvatarUrl } from "@/lib/trim-avatar";
 import type { DashboardUserRow } from "@/server/dashboard/load-user";
 
 export const NICKNAME_CHANGE_COINS = 5;
@@ -15,7 +14,7 @@ export type DashboardUser = {
   nickname: string;
   email: string;
   role: string;
-  avatarUrl: string | null;
+  hasAvatar: boolean;
   bio: string | null;
   social: ReturnType<typeof parseSocialLinks>;
   coinsBalance: number;
@@ -70,7 +69,7 @@ export async function getDashboardUser(user: DashboardUserRow): Promise<Dashboar
     nickname: user.nickname,
     email: user.email,
     role: user.role,
-    avatarUrl: trimAvatarUrl(user.avatarUrl),
+    hasAvatar: user.hasAvatar,
     bio: user.bio,
     social: parseSocialLinks(user.socialLinksJson),
     coinsBalance: user.coinsBalance,

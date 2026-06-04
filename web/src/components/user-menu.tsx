@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@/components/providers/auth-provider";
+import { AvatarImg } from "@/components/avatar-img";
 
 type IncomingPreview = { requestId: string; nickname: string };
 
@@ -51,12 +52,7 @@ export function UserMenu() {
         aria-haspopup="menu"
         onClick={() => setOpen((v) => !v)}
       >
-        {user.avatarUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={user.avatarUrl} alt="" className="avatar md" />
-        ) : (
-          <span className="avatar md placeholder">{initial}</span>
-        )}
+        <AvatarImg userId={user.id} nickname={user.nickname} size="md" />
         <span className="user-menu-name">{user.nickname}</span>
         <span className="user-menu-chevron" aria-hidden>
           ▾

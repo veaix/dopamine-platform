@@ -7,6 +7,7 @@ import {
   LEADERBOARD_FAST_REVALIDATE_SEC,
   LEADERBOARD_SLOW_REVALIDATE_SEC,
 } from "@/server/leaderboards/ttl";
+import type { LeaderboardViewer } from "@/server/leaderboards/viewer";
 
 export type { ViewerMeRanks } from "@/lib/leaderboards-merge";
 export { mergeMeRanks } from "@/lib/leaderboards-merge";
@@ -31,12 +32,12 @@ function withTimeout<T>(promise: Promise<T>, ms: number, fallback: T): Promise<T
   });
 }
 
-export type TopRow = { nickname: string; avatarUrl: string | null; value: number };
+export type TopRow = { userId: string; nickname: string; value: number };
 
 export type MeRank = {
   rank: number;
+  userId: string;
   nickname: string;
-  avatarUrl: string | null;
   value: number;
 };
 
@@ -69,36 +70,34 @@ function buildCategory(top: TopRow[], me: MeRank | null, viewerNickname: string 
   return { top, me };
 }
 
-function trimAvatarUrl(url: string | null) {
-  if (!url) return null;
-  if (url.startsWith("data:") || url.length > 512) return null;
-  return url;
-}
-
-function mapRows<T extends { value: unknown; nickname: string }>(rows: T[]) {
+function mapRows<T extends { value: unknown; nickname: string; userId: string }>(rows: T[]) {
   return rows.map((r) => ({
+    userId: r.userId,
     nickname: r.nickname,
-    avatarUrl: null,
     value: Number(r.value),
   }));
 }
 
-async function rankByPlaytime(user: { nickname: string; avatarUrl: string | null; playtimeSeconds: number }) {
+async function rankByPlaytime(user: {
+  id: string;
+  nickname: string;
+  playtimeSeconds: number;
+}) {
   const [{ count }] = await db
     .select({ count: sql<number>`count(*)` })
     .from(schema.users)
     .where(and(visible, gt(schema.users.playtimeSeconds, user.playtimeSeconds)));
   return {
     rank: Number(count) + 1,
+    userId: user.id,
     nickname: user.nickname,
-    avatarUrl: trimAvatarUrl(user.avatarUrl),
     value: user.playtimeSeconds,
   };
 }
 
 async function rankByServerSlots(user: {
+  id: string;
   nickname: string;
-  avatarUrl: string | null;
   availableServerSlots: number;
 }) {
   const [{ count }] = await db
@@ -107,27 +106,27 @@ async function rankByServerSlots(user: {
     .where(and(visible, gt(schema.users.availableServerSlots, user.availableServerSlots)));
   return {
     rank: Number(count) + 1,
+    userId: user.id,
     nickname: user.nickname,
-    avatarUrl: trimAvatarUrl(user.avatarUrl),
     value: user.availableServerSlots,
   };
 }
 
-async function rankByCoins(user: { nickname: string; avatarUrl: string | null; coinsBalance: number }) {
+async function rankByCoins(user: { id: string; nickname: string; coinsBalance: number }) {
   const [{ count }] = await db
     .select({ count: sql<number>`count(*)` })
     .from(schema.users)
     .where(and(visible, gt(schema.users.coinsBalance, user.coinsBalance)));
   return {
     rank: Number(count) + 1,
+    userId: user.id,
     nickname: user.nickname,
-    avatarUrl: trimAvatarUrl(user.avatarUrl),
     value: user.coinsBalance,
   };
 }
 
 async function rankByReaction(
-  user: { nickname: string; avatarUrl: string | null },
+  user: { id: string; nickname: string },
   reaction: "like" | "dislike",
   userCount: number,
 ) {
@@ -146,8 +145,8 @@ async function rankByReaction(
 
   return {
     rank: Number(count) + 1,
+    userId: user.id,
     nickname: user.nickname,
-    avatarUrl: trimAvatarUrl(user.avatarUrl),
     value: userCount,
   };
 }
@@ -167,6 +166,7 @@ function topByReaction(reaction: "like" | "dislike") {
 
   return db
     .select({
+      userId: schema.users.id,
       nickname: schema.users.nickname,
       value: topCounts.value,
     })
@@ -180,6 +180,7 @@ const getCachedSlowTopRows = unstable_cache(
   async () => {
     const byHours = await db
       .select({
+        userId: schema.users.id,
         nickname: schema.users.nickname,
         value: schema.users.playtimeSeconds,
       })
@@ -189,7 +190,7 @@ const getCachedSlowTopRows = unstable_cache(
       .limit(TOP_LIMIT);
     return { byHours };
   },
-  ["leaderboards-slow-rows"],
+  ["leaderboards-slow-rows-v2"],
   { revalidate: LEADERBOARD_SLOW_REVALIDATE_SEC },
 );
 
@@ -198,6 +199,7 @@ const getCachedFastTopRows = unstable_cache(
     const [byServerSlots, byCoins, likesRaw, dislikesRaw] = await Promise.all([
       db
         .select({
+          userId: schema.users.id,
           nickname: schema.users.nickname,
           value: schema.users.availableServerSlots,
         })
@@ -207,6 +209,7 @@ const getCachedFastTopRows = unstable_cache(
         .limit(TOP_LIMIT),
       db
         .select({
+          userId: schema.users.id,
           nickname: schema.users.nickname,
           value: schema.users.coinsBalance,
         })
@@ -219,7 +222,7 @@ const getCachedFastTopRows = unstable_cache(
     ]);
     return { byServerSlots, byCoins, likesRaw, dislikesRaw };
   },
-  ["leaderboards-fast-rows"],
+  ["leaderboards-fast-rows-v2"],
   { revalidate: LEADERBOARD_FAST_REVALIDATE_SEC },
 );
 
@@ -245,8 +248,8 @@ export async function getPublicLeaderboards(): Promise<LeaderboardsData> {
 
 export async function getViewerMeRanksSlow(
   viewer: {
+    id: string;
     nickname: string;
-    avatarUrl: string | null;
     playtimeSeconds: number;
     hiddenFromLeaderboards: boolean;
   },
@@ -257,14 +260,7 @@ export async function getViewerMeRanksSlow(
 }
 
 export async function getViewerMeRanksFast(
-  viewer: {
-    id: string;
-    nickname: string;
-    avatarUrl: string | null;
-    availableServerSlots: number;
-    coinsBalance: number;
-    hiddenFromLeaderboards: boolean;
-  },
+  viewer: LeaderboardViewer,
 ): Promise<Omit<ViewerMeRanks, "byHours"> | null> {
   if (viewer.hiddenFromLeaderboards) return null;
 
@@ -285,15 +281,7 @@ export async function getViewerMeRanksFast(
 }
 
 export async function getViewerMeRanks(
-  viewer: {
-    id: string;
-    nickname: string;
-    avatarUrl: string | null;
-    playtimeSeconds: number;
-    availableServerSlots: number;
-    coinsBalance: number;
-    hiddenFromLeaderboards: boolean;
-  },
+  viewer: LeaderboardViewer,
 ): Promise<ViewerMeRanks | null> {
   const [slow, fast] = await Promise.all([
     getViewerMeRanksSlow(viewer),
@@ -310,15 +298,9 @@ export async function getViewerMeRanks(
 }
 
 /** Full leaderboards including "your rank" — prefer split fast/slow + polling. */
-export async function getLeaderboards(viewer: {
-  id: string;
-  nickname: string;
-  avatarUrl: string | null;
-  playtimeSeconds: number;
-  availableServerSlots: number;
-  coinsBalance: number;
-  hiddenFromLeaderboards: boolean;
-} | null): Promise<LeaderboardsData> {
+export async function getLeaderboards(
+  viewer: LeaderboardViewer | null,
+): Promise<LeaderboardsData> {
   const publicData = await getPublicLeaderboards();
   if (!viewer) return publicData;
   const me = await getViewerMeRanks(viewer);

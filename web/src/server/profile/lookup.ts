@@ -17,16 +17,15 @@ export async function findUserProfileByNickname(nickname: string) {
       playtimeSeconds: schema.users.playtimeSeconds,
       emailVerifiedAt: schema.users.emailVerifiedAt,
       email: schema.users.email,
-      avatarUrl: sql<string | null>`CASE
-        WHEN ${schema.users.avatarUrl} IS NULL THEN NULL
-        WHEN length(${schema.users.avatarUrl}) > 512 THEN NULL
-        WHEN substr(${schema.users.avatarUrl}, 1, 5) = 'data:' THEN NULL
-        ELSE ${schema.users.avatarUrl}
+      hasAvatar: sql<number>`CASE
+        WHEN ${schema.users.avatarUrl} IS NOT NULL AND length(${schema.users.avatarUrl}) > 0 THEN 1
+        ELSE 0
       END`,
     })
     .from(schema.users)
     .where(nicknameEquals(trimmed))
     .limit(1);
 
-  return row;
+  if (!row) return undefined;
+  return { ...row, hasAvatar: Boolean(row.hasAvatar) };
 }

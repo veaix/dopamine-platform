@@ -17,7 +17,7 @@ export type DashboardUserRow = {
   createdAt: Date;
   trialWindowStartedAt: Date | null;
   trialServerUsedAt: Date | null;
-  avatarUrl: string | null;
+  hasAvatar: boolean;
 };
 
 export async function loadDashboardUserRow(userId: string): Promise<DashboardUserRow | undefined> {
@@ -38,16 +38,15 @@ export async function loadDashboardUserRow(userId: string): Promise<DashboardUse
       createdAt: schema.users.createdAt,
       trialWindowStartedAt: schema.users.trialWindowStartedAt,
       trialServerUsedAt: schema.users.trialServerUsedAt,
-      avatarUrl: sql<string | null>`CASE
-        WHEN ${schema.users.avatarUrl} IS NULL THEN NULL
-        WHEN length(${schema.users.avatarUrl}) > 512 THEN NULL
-        WHEN substr(${schema.users.avatarUrl}, 1, 5) = 'data:' THEN NULL
-        ELSE ${schema.users.avatarUrl}
+      hasAvatar: sql<number>`CASE
+        WHEN ${schema.users.avatarUrl} IS NOT NULL AND length(${schema.users.avatarUrl}) > 0 THEN 1
+        ELSE 0
       END`,
     })
     .from(schema.users)
     .where(eq(schema.users.id, userId))
     .limit(1);
 
-  return row;
+  if (!row) return undefined;
+  return { ...row, hasAvatar: Boolean(row.hasAvatar) };
 }
