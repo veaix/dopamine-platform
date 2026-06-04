@@ -2,19 +2,17 @@ export type SessionUser = {
   id: string;
   nickname: string;
   role: string;
-  avatarUrl: string | null;
+  hasAvatar: boolean;
   coinsBalance: number;
   availableServerSlots: number;
   playtimeSeconds: number;
 };
 
-import { trimAvatarUrl } from "@/lib/trim-avatar";
-
 export function toSessionUser(user: {
   id: string;
   nickname: string;
   role: string;
-  avatarUrl?: string | null;
+  hasAvatar: boolean;
   coinsBalance: number;
   availableServerSlots: number;
   playtimeSeconds: number;
@@ -23,7 +21,7 @@ export function toSessionUser(user: {
     id: user.id,
     nickname: user.nickname,
     role: user.role,
-    avatarUrl: trimAvatarUrl(user.avatarUrl ?? null),
+    hasAvatar: user.hasAvatar,
     coinsBalance: user.coinsBalance,
     availableServerSlots: user.availableServerSlots,
     playtimeSeconds: user.playtimeSeconds,

@@ -98,7 +98,7 @@ export function ProfilePublic({
 
       <div className="profile-head">
 
-        <AvatarImg userId={p.targetUserId} nickname={p.nickname} size="lg" />
+        <AvatarImg userId={p.targetUserId} nickname={p.nickname} size="lg" hasAvatar={p.hasAvatar} />
 
         <div>
           <div className="profile-name-row">

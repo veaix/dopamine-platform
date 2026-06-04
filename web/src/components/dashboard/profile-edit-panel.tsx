@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { NICKNAME_MAX_LENGTH } from "@/lib/nickname";
 import type { DashboardUser } from "@/server/dashboard/profile";
 import { AvatarImg } from "@/components/avatar-img";
@@ -12,6 +12,11 @@ export function ProfileEditPanel({ me, onUpdated }: { me: DashboardUser; onUpdat
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [avatarRev, setAvatarRev] = useState(0);
+  const [showAvatar, setShowAvatar] = useState(me.hasAvatar);
+
+  useEffect(() => {
+    setShowAvatar(me.hasAvatar);
+  }, [me.hasAvatar]);
 
   async function uploadAvatar(file: File) {
     if (file.size > 220_000) {
@@ -37,6 +42,7 @@ export function ProfileEditPanel({ me, onUpdated }: { me: DashboardUser; onUpdat
           if (!r.ok) setError(d.error ?? "Ошибка загрузки");
           else {
             setMsg("Аватар обновлён");
+            setShowAvatar(true);
             setAvatarRev(Date.now());
             onUpdated();
           }
@@ -96,7 +102,13 @@ export function ProfileEditPanel({ me, onUpdated }: { me: DashboardUser; onUpdat
       <section className="card dash-panel">
         <h2>Аватар</h2>
         <div className="dash-avatar-edit">
-          <AvatarImg userId={me.id} nickname={me.nickname} size="xl" cacheBust={avatarRev || undefined} />
+          <AvatarImg
+            userId={me.id}
+            nickname={me.nickname}
+            size="xl"
+            hasAvatar={showAvatar}
+            cacheBust={avatarRev || undefined}
+          />
           <label className="btn secondary file">
             {busy ? "Загрузка…" : "Загрузить новый аватар"}
             <input
@@ -113,22 +125,27 @@ export function ProfileEditPanel({ me, onUpdated }: { me: DashboardUser; onUpdat
           <button
             type="button"
             className="btn ghost sm"
-            disabled={busy || !me.hasAvatar}
-            onClick={() =>
+            disabled={busy || !showAvatar}
+            onClick={() => {
+              setBusy(true);
+              setError("");
               void fetch("/api/me", {
                 method: "PATCH",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ avatarUrl: null }),
-              }).then(async (r) => {
-                const d = await r.json();
-                if (!r.ok) setError(d.error ?? "Ошибка");
-                else {
-                  setMsg("Аватар удалён");
-                  setAvatarRev(Date.now());
-                  onUpdated();
-                }
               })
-            }
+                .then(async (r) => {
+                  const d = await r.json();
+                  if (!r.ok) setError(d.error ?? "Ошибка");
+                  else {
+                    setMsg("Аватар удалён");
+                    setShowAvatar(false);
+                    setAvatarRev(Date.now());
+                    onUpdated();
+                  }
+                })
+                .finally(() => setBusy(false));
+            }}
           >
             Удалить аватар
           </button>

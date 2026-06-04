@@ -19,13 +19,25 @@ function parseDataUrl(dataUrl: string): { mime: string; bytes: Uint8Array } | nu
 }
 
 export async function loadUserAvatar(userId: string): Promise<string | null> {
+  const row = await loadUserAvatarMeta(userId);
+  return row?.avatarUrl ?? null;
+}
+
+export async function loadUserAvatarMeta(
+  userId: string,
+): Promise<{ avatarUrl: string; cacheTag: string } | null> {
   const [row] = await db
-    .select({ avatarUrl: schema.users.avatarUrl })
+    .select({
+      avatarUrl: schema.users.avatarUrl,
+      updatedAt: schema.users.updatedAt,
+    })
     .from(schema.users)
     .where(eq(schema.users.id, userId))
     .limit(1);
   const url = row?.avatarUrl?.trim();
-  return url || null;
+  if (!url) return null;
+  const cacheTag = `${userId}-${row.updatedAt.getTime()}-${url.length}`;
+  return { avatarUrl: url, cacheTag };
 }
 
 export async function loadUserAvatarByNickname(nickname: string): Promise<{
@@ -42,21 +54,33 @@ export async function loadUserAvatarByNickname(nickname: string): Promise<{
   return { userId: row.id, avatarUrl: url };
 }
 
-export function avatarResponse(avatarUrl: string): Response {
+const AVATAR_CACHE = "private, max-age=3600, must-revalidate";
+
+export function avatarNotFoundResponse(): Response {
+  return new Response(null, {
+    status: 404,
+    headers: { "Cache-Control": "no-store" },
+  });
+}
+
+export function avatarResponse(avatarUrl: string, cacheTag?: string): Response {
   if (avatarUrl.startsWith("http://") || avatarUrl.startsWith("https://")) {
     return Response.redirect(avatarUrl, 302);
   }
 
   const parsed = parseDataUrl(avatarUrl);
   if (!parsed) {
-    return new Response(null, { status: 404 });
+    return avatarNotFoundResponse();
   }
+
+  const headers: Record<string, string> = {
+    "Content-Type": parsed.mime,
+    "Cache-Control": AVATAR_CACHE,
+  };
+  if (cacheTag) headers.ETag = `"${cacheTag}"`;
 
   return new Response(Buffer.from(parsed.bytes), {
     status: 200,
-    headers: {
-      "Content-Type": parsed.mime,
-      "Cache-Control": "public, max-age=86400, stale-while-revalidate=604800",
-    },
+    headers,
   });
 }

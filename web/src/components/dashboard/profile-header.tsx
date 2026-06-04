@@ -8,7 +8,7 @@ export function ProfileHeader({ me }: { me: DashboardUser }) {
   return (
     <section className="card dash-profile">
       <div className="dash-profile-main">
-        <AvatarImg userId={me.id} nickname={me.nickname} size="xl" />
+        <AvatarImg userId={me.id} nickname={me.nickname} size="xl" hasAvatar={me.hasAvatar} />
         <div className="dash-profile-info">
           <h1 className="dash-nickname">{me.nickname}</h1>
           <p className="muted dash-email">{me.email}</p>

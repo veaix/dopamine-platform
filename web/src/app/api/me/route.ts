@@ -55,5 +55,12 @@ export async function PATCH(request: Request) {
   if (Object.keys(patch).length <= 1) return err("Нечего обновлять", 400);
 
   await db.update(schema.users).set(patch).where(eq(schema.users.id, user.id));
-  return json({ ok: true });
+
+  let hasAvatar: boolean | undefined;
+  if (body.avatarUrl !== undefined) {
+    const row = await loadDashboardUserRow(user.id);
+    hasAvatar = row?.hasAvatar ?? false;
+  }
+
+  return json({ ok: true, ...(hasAvatar !== undefined ? { hasAvatar } : {}) });
 }

@@ -35,4 +35,5 @@ export type SessionDbUser = {
   bioEditedAt: Date | null;
   totpEnabled: boolean;
   totpSecret: string | null;
+  hasAvatar: boolean;
 };
