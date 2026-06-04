@@ -8,11 +8,7 @@ export type SessionUser = {
   playtimeSeconds: number;
 };
 
-function trimAvatarUrl(url: string | null | undefined) {
-  if (!url) return null;
-  if (url.startsWith("data:") || url.length > 512) return null;
-  return url;
-}
+import { trimAvatarUrl } from "@/lib/trim-avatar";
 
 export function toSessionUser(user: {
   id: string;

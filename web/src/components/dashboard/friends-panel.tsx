@@ -14,19 +14,29 @@ function mapGiftableKeys(keys: { id: string; grantServers: number; giftStatus: s
   }));
 }
 
+type FriendsMutationResponse = {
+  ok?: boolean;
+  friends?: FriendsData;
+  error?: string;
+  grantedServers?: number;
+  grantedCoins?: number;
+};
+
 export function FriendsPanel({
   initial,
   ownedKeys,
-  onRefresh,
+  onEconomyRefresh,
 }: {
   initial: FriendsData;
   ownedKeys: OwnedGiftKey[];
-  onRefresh: () => void;
+  /** After accepting a gift key — refresh coins/slots in dashboard */
+  onEconomyRefresh?: () => void;
 }) {
   const [data, setData] = useState(initial);
   const [nick, setNick] = useState("");
   const [msg, setMsg] = useState("");
   const [error, setError] = useState("");
+  const [pending, setPending] = useState<string | null>(null);
   const giftableKeys = useMemo(() => mapGiftableKeys(ownedKeys), [ownedKeys]);
   const [giftKeyByFriend, setGiftKeyByFriend] = useState<Record<string, string>>({});
 
@@ -34,71 +44,66 @@ export function FriendsPanel({
     setData(initial);
   }, [initial]);
 
-  function reload() {
-    void fetch("/api/friends/list")
-      .then(async (r) => {
-        const d = await r.json();
-        if (r.ok) setData(d);
-      })
-      .catch(() => {});
+  function applyFriends(payload: { friends?: FriendsData }) {
+    if (payload.friends) setData(payload.friends);
+  }
+
+  async function postFriends(
+    url: string,
+    body: Record<string, unknown>,
+    pendingKey: string,
+    onSuccess?: (d: FriendsMutationResponse) => void,
+  ) {
+    setError("");
+    setMsg("");
+    setPending(pendingKey);
+    try {
+      const r = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const d = (await r.json()) as FriendsMutationResponse;
+      if (!r.ok) {
+        setError(d.error ?? "Ошибка");
+        return;
+      }
+      applyFriends(d);
+      onSuccess?.(d);
+    } catch {
+      setError("Сеть недоступна");
+    } finally {
+      setPending(null);
+    }
   }
 
   async function sendRequest() {
-    setError("");
-    setMsg("");
-    const r = await fetch("/api/friends/request", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ nickname: nick }),
-    });
-    const d = await r.json();
-    if (!r.ok) setError(d.error ?? "Ошибка");
-    else {
+    await postFriends("/api/friends/request", { nickname: nick }, "request", () => {
       setMsg("Заявка отправлена");
       setNick("");
-      reload();
-    }
+    });
   }
 
   async function respond(requestId: string, action: "accept" | "reject") {
-    setError("");
-    const r = await fetch("/api/friends/respond", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ requestId, action }),
-    });
-    const d = await r.json();
-    if (!r.ok) {
-      setError(d.error ?? "Ошибка");
-      return;
-    }
-    onRefresh();
+    await postFriends(
+      "/api/friends/respond",
+      { requestId, action },
+      `respond-${requestId}-${action}`,
+      () => setMsg(action === "accept" ? "Добавлен в друзья" : "Заявка отклонена"),
+    );
   }
 
   async function cancelRequest(requestId: string) {
-    const r = await fetch("/api/friends/cancel", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ requestId }),
-    });
-    const d = await r.json();
-    if (!r.ok) setError(d.error ?? "Ошибка");
-    else reload();
+    await postFriends("/api/friends/cancel", { requestId }, `cancel-${requestId}`, () =>
+      setMsg("Заявка отменена"),
+    );
   }
 
   async function removeFriend(userId: string) {
     if (!confirm("Удалить из друзей?")) return;
-    const r = await fetch("/api/friends/remove", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ userId }),
-    });
-    const d = await r.json();
-    if (!r.ok) setError(d.error ?? "Ошибка");
-    else {
-      setMsg("Удалён из друзей");
-      reload();
-    }
+    await postFriends("/api/friends/remove", { userId }, `remove-${userId}`, () =>
+      setMsg("Удалён из друзей"),
+    );
   }
 
   async function sendGift(friendUserId: string) {
@@ -107,48 +112,35 @@ export function FriendsPanel({
       setError("Выберите ключ для подарка");
       return;
     }
-    setError("");
-    const r = await fetch("/api/friends/gift-key", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ keyId, friendUserId }),
-    });
-    const d = await r.json();
-    if (!r.ok) setError(d.error ?? "Ошибка");
-    else {
-      setMsg("Подарок отправлен — друг может принять или отклонить");
-      reload();
-    }
+    await postFriends(
+      "/api/friends/gift-key",
+      { keyId, friendUserId },
+      `gift-${friendUserId}`,
+      () => setMsg("Подарок отправлен — друг может принять или отклонить"),
+    );
   }
 
   async function respondGift(giftId: string, action: "accept" | "reject") {
-    const r = await fetch("/api/friends/gift-key/respond", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ giftId, action }),
-    });
-    const d = await r.json();
-    if (!r.ok) setError(d.error ?? "Ошибка");
-    else {
-      setMsg(action === "accept" ? "Подарок принят!" : "Подарок отклонён");
-      reload();
-    }
+    await postFriends(
+      "/api/friends/gift-key/respond",
+      { giftId, action },
+      `gift-respond-${giftId}-${action}`,
+      (d) => {
+        setMsg(action === "accept" ? "Подарок принят!" : "Подарок отклонён");
+        if (action === "accept" && (d.grantedServers != null || d.grantedCoins != null)) {
+          onEconomyRefresh?.();
+        }
+      },
+    );
   }
 
   async function revokeGift(giftId: string) {
-    const r = await fetch("/api/friends/gift-key/revoke", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ giftId }),
-    });
-    const d = await r.json();
-    if (!r.ok) setError(d.error ?? "Ошибка");
-    else {
-      setMsg("Подарок отозван");
-      reload();
-    }
+    await postFriends("/api/friends/gift-key/revoke", { giftId }, `gift-revoke-${giftId}`, () =>
+      setMsg("Подарок отозван"),
+    );
   }
 
+  const busy = pending !== null;
   const { friends, incoming, outgoing, incomingGifts, outgoingGifts } = data;
 
   return (
@@ -157,8 +149,13 @@ export function FriendsPanel({
         <h2>Добавить в друзья</h2>
         <div className="row">
           <input placeholder="Никнейм" value={nick} onChange={(e) => setNick(e.target.value)} />
-          <button type="button" className="btn" disabled={!nick.trim()} onClick={() => void sendRequest()}>
-            Отправить заявку
+          <button
+            type="button"
+            className="btn"
+            disabled={!nick.trim() || busy}
+            onClick={() => void sendRequest()}
+          >
+            {pending === "request" ? "…" : "Отправить заявку"}
           </button>
         </div>
         {error ? <p className="error">{error}</p> : null}
@@ -176,11 +173,21 @@ export function FriendsPanel({
                   ключ · {g.grantServers} сервер{g.grantCoins ? ` + ${g.grantCoins} 🪙` : ""}
                 </span>
                 <div className="row">
-                  <button type="button" className="btn sm" onClick={() => void respondGift(g.giftId, "accept")}>
-                    Принять
+                  <button
+                    type="button"
+                    className="btn sm"
+                    disabled={busy}
+                    onClick={() => void respondGift(g.giftId, "accept")}
+                  >
+                    {pending === `gift-respond-${g.giftId}-accept` ? "…" : "Принять"}
                   </button>
-                  <button type="button" className="btn sm ghost" onClick={() => void respondGift(g.giftId, "reject")}>
-                    Отклонить
+                  <button
+                    type="button"
+                    className="btn sm ghost"
+                    disabled={busy}
+                    onClick={() => void respondGift(g.giftId, "reject")}
+                  >
+                    {pending === `gift-respond-${g.giftId}-reject` ? "…" : "Отклонить"}
                   </button>
                 </div>
               </li>
@@ -197,8 +204,13 @@ export function FriendsPanel({
               <li key={g.giftId} className="dash-friend-item">
                 <FriendRow nickname={g.nickname} avatarUrl={g.avatarUrl} />
                 <span className="muted">ожидает ответа · {g.grantServers} сервер</span>
-                <button type="button" className="btn sm ghost" onClick={() => void revokeGift(g.giftId)}>
-                  Отозвать
+                <button
+                  type="button"
+                  className="btn sm ghost"
+                  disabled={busy}
+                  onClick={() => void revokeGift(g.giftId)}
+                >
+                  {pending === `gift-revoke-${g.giftId}` ? "…" : "Отозвать"}
                 </button>
               </li>
             ))}
@@ -214,11 +226,21 @@ export function FriendsPanel({
               <li key={r.requestId} className="dash-friend-item">
                 <FriendRow nickname={r.nickname} avatarUrl={r.avatarUrl} />
                 <div className="row">
-                  <button type="button" className="btn sm" onClick={() => void respond(r.requestId, "accept")}>
-                    Принять
+                  <button
+                    type="button"
+                    className="btn sm"
+                    disabled={busy}
+                    onClick={() => void respond(r.requestId, "accept")}
+                  >
+                    {pending === `respond-${r.requestId}-accept` ? "…" : "Принять"}
                   </button>
-                  <button type="button" className="btn sm ghost" onClick={() => void respond(r.requestId, "reject")}>
-                    Отклонить
+                  <button
+                    type="button"
+                    className="btn sm ghost"
+                    disabled={busy}
+                    onClick={() => void respond(r.requestId, "reject")}
+                  >
+                    {pending === `respond-${r.requestId}-reject` ? "…" : "Отклонить"}
                   </button>
                 </div>
               </li>
@@ -234,8 +256,13 @@ export function FriendsPanel({
             {outgoing.map((r) => (
               <li key={r.requestId} className="dash-friend-item">
                 <FriendRow nickname={r.nickname} avatarUrl={r.avatarUrl} />
-                <button type="button" className="btn sm ghost" onClick={() => void cancelRequest(r.requestId)}>
-                  Отменить
+                <button
+                  type="button"
+                  className="btn sm ghost"
+                  disabled={busy}
+                  onClick={() => void cancelRequest(r.requestId)}
+                >
+                  {pending === `cancel-${r.requestId}` ? "…" : "Отменить"}
                 </button>
               </li>
             ))}
@@ -246,7 +273,9 @@ export function FriendsPanel({
       <section className="card dash-panel">
         <h2>Мои друзья ({friends.length})</h2>
         {giftableKeys.length > 0 ? (
-          <p className="muted">Можно подарить ключ ({giftableKeys.length} доступно) — выберите ключ и нажмите «Подарить»</p>
+          <p className="muted">
+            Можно подарить ключ ({giftableKeys.length} доступно) — выберите ключ и нажмите «Подарить»
+          </p>
         ) : (
           <p className="muted">Купите ключ в подарок во вкладке «Монеты и ключи», чтобы дарить друзьям</p>
         )}
@@ -262,6 +291,7 @@ export function FriendsPanel({
                     <div className="row">
                       <select
                         value={giftKeyByFriend[f.userId] ?? ""}
+                        disabled={busy}
                         onChange={(e) =>
                           setGiftKeyByFriend((prev) => ({ ...prev, [f.userId]: e.target.value }))
                         }
@@ -273,8 +303,13 @@ export function FriendsPanel({
                           </option>
                         ))}
                       </select>
-                      <button type="button" className="btn sm" onClick={() => void sendGift(f.userId)}>
-                        Подарить
+                      <button
+                        type="button"
+                        className="btn sm"
+                        disabled={busy}
+                        onClick={() => void sendGift(f.userId)}
+                      >
+                        {pending === `gift-${f.userId}` ? "…" : "Подарить"}
                       </button>
                     </div>
                   ) : null}
@@ -282,8 +317,13 @@ export function FriendsPanel({
                     <Link href={`/u/${f.nickname}`} className="btn sm secondary">
                       Профиль
                     </Link>
-                    <button type="button" className="btn sm ghost danger-text" onClick={() => void removeFriend(f.userId)}>
-                      Удалить
+                    <button
+                      type="button"
+                      className="btn sm ghost danger-text"
+                      disabled={busy}
+                      onClick={() => void removeFriend(f.userId)}
+                    >
+                      {pending === `remove-${f.userId}` ? "…" : "Удалить"}
                     </button>
                   </div>
                 </div>

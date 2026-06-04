@@ -6,6 +6,19 @@ export function nicknameEquals(nickname: string) {
   return sql`lower(${schema.users.nickname}) = lower(${trimmed})`;
 }
 
+export async function findUserIdByNickname(nickname: string) {
+  const trimmed = nickname.trim();
+  if (!trimmed) return undefined;
+
+  const [row] = await db
+    .select({ id: schema.users.id })
+    .from(schema.users)
+    .where(nicknameEquals(trimmed))
+    .limit(1);
+
+  return row?.id;
+}
+
 export async function findUserByNickname(nickname: string) {
   const trimmed = nickname.trim();
   if (!trimmed) return undefined;

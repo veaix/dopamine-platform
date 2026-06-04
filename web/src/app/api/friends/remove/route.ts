@@ -1,8 +1,9 @@
 import { and, eq, or } from "drizzle-orm";
 import { db, schema } from "@/server/db";
 import { getCurrentUser } from "@/server/auth/session";
-import { findUserByNickname } from "@/server/users/lookup";
-import { json, err } from "@/lib/api";
+import { findUserIdByNickname } from "@/server/users/lookup";
+import { err } from "@/lib/api";
+import { jsonWithFriends } from "@/server/friends/json";
 
 export async function POST(request: Request) {
   const user = await getCurrentUser();
@@ -13,9 +14,9 @@ export async function POST(request: Request) {
   let friendId = body?.userId?.trim();
 
   if (!friendId && nickname) {
-    const friend = await findUserByNickname(nickname);
-    if (!friend) return err("Пользователь не найден", 404);
-    friendId = friend.id;
+    const id = await findUserIdByNickname(nickname);
+    if (!id) return err("Пользователь не найден", 404);
+    friendId = id;
   }
 
   if (!friendId) return err("Укажите друга", 400);
@@ -35,5 +36,5 @@ export async function POST(request: Request) {
   if (!row) return err("Это не ваш друг", 404);
 
   await db.delete(schema.friendRequests).where(eq(schema.friendRequests.id, row.id));
-  return json({ ok: true });
+  return jsonWithFriends(user.id);
 }

@@ -1,12 +1,13 @@
 import { db, schema } from "@/server/db";
 import { getCurrentUser } from "@/server/auth/session";
-import { findUserByNickname } from "@/server/users/lookup";
+import { findUserIdByNickname } from "@/server/users/lookup";
+import { jsonWithFriends } from "@/server/friends/json";
 import { newId } from "@/server/utils/ids";
 import {
   areFriends,
   assertUserOwnsAvailableKey,
 } from "@/server/keys/inventory";
-import { json, err } from "@/lib/api";
+import { err } from "@/lib/api";
 
 export async function POST(request: Request) {
   const user = await getCurrentUser();
@@ -26,9 +27,9 @@ export async function POST(request: Request) {
 
   let friendId = body?.friendUserId?.trim();
   if (!friendId && body?.friendNickname?.trim()) {
-    const friend = await findUserByNickname(body.friendNickname.trim());
-    if (!friend) return err("Друг не найден", 404);
-    friendId = friend.id;
+    const id = await findUserIdByNickname(body.friendNickname.trim());
+    if (!id) return err("Друг не найден", 404);
+    friendId = id;
   }
 
   if (!friendId) return err("Укажите друга", 400);
@@ -47,5 +48,5 @@ export async function POST(request: Request) {
     status: "pending",
   });
 
-  return json({ ok: true, giftId });
+  return jsonWithFriends(user.id, { giftId });
 }

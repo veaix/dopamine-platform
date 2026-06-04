@@ -167,6 +167,19 @@ function DashboardInner({ initialMe, initialFriends, initialOwnedKeys }: Props) 
       .catch(() => {});
   }, []);
 
+  const refreshEconomy = useCallback(async () => {
+    try {
+      const [meRes, keysRes] = await Promise.all([fetch("/api/me"), fetch("/api/economy/buy-gift-key")]);
+      const meData = await meRes.json();
+      if (meRes.ok && meData.user) setMe(meData.user);
+      const keysData = await keysRes.json();
+      if (keysRes.ok) setOwnedKeys(keysData.keys ?? []);
+      await refreshAuth();
+    } catch {
+      /* ignore */
+    }
+  }, [refreshAuth]);
+
 
 
   const tabs = tabsForRole(me.role);
@@ -384,7 +397,7 @@ function DashboardInner({ initialMe, initialFriends, initialOwnedKeys }: Props) 
 
             ownedKeys={ownedKeys}
 
-            onRefresh={() => void refreshAll()}
+            onEconomyRefresh={() => void refreshEconomy()}
 
           />
 

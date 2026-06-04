@@ -50,7 +50,6 @@ export async function getFriendsBundle(userId: string): Promise<FriendsData> {
             .select({
               userId: schema.users.id,
               nickname: schema.users.nickname,
-              avatarUrl: schema.users.avatarUrl,
             })
             .from(schema.users)
             .where(inArray(schema.users.id, friendIds))
@@ -87,7 +86,6 @@ export async function getFriendsBundle(userId: string): Promise<FriendsData> {
           .select({
             id: schema.users.id,
             nickname: schema.users.nickname,
-            avatarUrl: schema.users.avatarUrl,
           })
           .from(schema.users)
           .where(inArray(schema.users.id, [...userIds]))
@@ -113,7 +111,7 @@ export async function getFriendsBundle(userId: string): Promise<FriendsData> {
     .map((r) => {
       const u = userById.get(r.fromUserId);
       if (!u) return null;
-      return { requestId: r.id, userId: u.id, nickname: u.nickname, avatarUrl: u.avatarUrl };
+      return { requestId: r.id, userId: u.id, nickname: u.nickname, avatarUrl: null };
     })
     .filter(Boolean) as FriendRequestEntry[];
 
@@ -121,7 +119,7 @@ export async function getFriendsBundle(userId: string): Promise<FriendsData> {
     .map((r) => {
       const u = userById.get(r.toUserId);
       if (!u) return null;
-      return { requestId: r.id, userId: u.id, nickname: u.nickname, avatarUrl: u.avatarUrl };
+      return { requestId: r.id, userId: u.id, nickname: u.nickname, avatarUrl: null };
     })
     .filter(Boolean) as FriendRequestEntry[];
 
@@ -136,7 +134,7 @@ export async function getFriendsBundle(userId: string): Promise<FriendsData> {
       giftId: g.id,
       userId: u.id,
       nickname: u.nickname,
-      avatarUrl: u.avatarUrl,
+      avatarUrl: null,
       grantServers: key.grantServers,
       grantCoins: key.grantCoins,
     };
@@ -151,7 +149,7 @@ export async function getFriendsBundle(userId: string): Promise<FriendsData> {
     .filter(Boolean) as KeyGiftEntry[];
 
   return {
-    friends: friendsRows as FriendEntry[],
+    friends: friendsRows.map((f) => ({ ...f, avatarUrl: null })) as FriendEntry[],
     incoming,
     outgoing,
     incomingGifts,

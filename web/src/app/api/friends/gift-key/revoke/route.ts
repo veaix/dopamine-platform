@@ -1,7 +1,8 @@
 import { eq } from "drizzle-orm";
 import { db, schema } from "@/server/db";
 import { getCurrentUser } from "@/server/auth/session";
-import { json, err } from "@/lib/api";
+import { err } from "@/lib/api";
+import { jsonWithFriends } from "@/server/friends/json";
 
 export async function POST(request: Request) {
   const user = await getCurrentUser();
@@ -23,5 +24,5 @@ export async function POST(request: Request) {
     .set({ status: "revoked", updatedAt: new Date() })
     .where(eq(schema.friendKeyGifts.id, gift.id));
 
-  return json({ ok: true });
+  return jsonWithFriends(user.id);
 }
