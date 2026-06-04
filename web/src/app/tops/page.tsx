@@ -1,12 +1,10 @@
-import { getCurrentUser } from "@/server/auth/session";
-import { getLeaderboards } from "@/server/leaderboards";
 import { PageShell } from "@/components/page-shell";
 import { TopsClient } from "@/components/tops-client";
 
-export default async function TopsPage() {
-  const viewer = await getCurrentUser();
-  const initialData = await getLeaderboards(viewer);
+/** Avoid blocking SSR on slow leaderboard queries (Turso). */
+export const dynamic = "force-dynamic";
 
+export default function TopsPage() {
   return (
     <PageShell
       decor="tops"
@@ -14,7 +12,7 @@ export default async function TopsPage() {
       title="Топы игроков"
       subtitle="Соревнуйся по времени в игре, монетам, лайкам и слотам серверов."
     >
-      <TopsClient initialData={initialData} />
+      <TopsClient />
     </PageShell>
   );
 }
