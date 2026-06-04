@@ -5,7 +5,25 @@ import { getProfileReactionCounts } from "@/lib/profile-stats";
 
 const TOP_LIMIT = 10;
 const CACHE_SECONDS = 120;
+const REACTION_CACHE_SECONDS = 300;
+const REACTION_QUERY_MS = 8_000;
 const visible = eq(schema.users.hiddenFromLeaderboards, false);
+
+function withTimeout<T>(promise: Promise<T>, ms: number, fallback: T): Promise<T> {
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => resolve(fallback), ms);
+    promise.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      () => {
+        clearTimeout(timer);
+        resolve(fallback);
+      },
+    );
+  });
+}
 
 export type TopRow = { nickname: string; avatarUrl: string | null; value: number };
 
@@ -113,23 +131,33 @@ async function rankByReaction(
 }
 
 function topByReaction(reaction: "like" | "dislike") {
+  const topCounts = db
+    .select({
+      targetUserId: schema.profileReactions.targetUserId,
+      value: sql<number>`count(*)`.as("value"),
+    })
+    .from(schema.profileReactions)
+    .where(eq(schema.profileReactions.reaction, reaction))
+    .groupBy(schema.profileReactions.targetUserId)
+    .orderBy(desc(sql<number>`count(*)`))
+    .limit(TOP_LIMIT)
+    .as("top_reaction_counts");
+
   return db
     .select({
       nickname: schema.users.nickname,
       avatarUrl: schema.users.avatarUrl,
-      value: sql<number>`count(${schema.profileReactions.id})`,
+      value: topCounts.value,
     })
-    .from(schema.profileReactions)
-    .innerJoin(schema.users, eq(schema.users.id, schema.profileReactions.targetUserId))
-    .where(and(eq(schema.profileReactions.reaction, reaction), visible))
-    .groupBy(schema.users.id)
-    .orderBy(desc(sql<number>`count(${schema.profileReactions.id})`))
-    .limit(TOP_LIMIT);
+    .from(topCounts)
+    .innerJoin(schema.users, eq(schema.users.id, topCounts.targetUserId))
+    .where(visible)
+    .orderBy(desc(topCounts.value));
 }
 
-const getCachedTopLists = unstable_cache(
+const getCachedCoreTopLists = unstable_cache(
   async () => {
-    const [byHours, likesRaw, dislikesRaw, byServerSlots, byCoins] = await Promise.all([
+    const [byHours, byServerSlots, byCoins] = await Promise.all([
       db
         .select({
           nickname: schema.users.nickname,
@@ -140,8 +168,6 @@ const getCachedTopLists = unstable_cache(
         .where(visible)
         .orderBy(desc(schema.users.playtimeSeconds))
         .limit(TOP_LIMIT),
-      topByReaction("like"),
-      topByReaction("dislike"),
       db
         .select({
           nickname: schema.users.nickname,
@@ -164,14 +190,34 @@ const getCachedTopLists = unstable_cache(
         .limit(TOP_LIMIT),
     ]);
 
-    return { byHours, likesRaw, dislikesRaw, byServerSlots, byCoins };
+    return { byHours, byServerSlots, byCoins };
   },
-  ["leaderboards-top-lists"],
+  ["leaderboards-core-tops"],
   { revalidate: CACHE_SECONDS },
 );
 
+const getCachedReactionTopLists = unstable_cache(
+  async () => {
+    const [likesRaw, dislikesRaw] = await Promise.all([topByReaction("like"), topByReaction("dislike")]);
+    return { likesRaw, dislikesRaw };
+  },
+  ["leaderboards-reaction-tops"],
+  { revalidate: REACTION_CACHE_SECONDS },
+);
+
+async function getTopLists() {
+  const [core, reactions] = await Promise.all([
+    getCachedCoreTopLists(),
+    withTimeout(getCachedReactionTopLists(), REACTION_QUERY_MS, {
+      likesRaw: [] as Awaited<ReturnType<typeof topByReaction>>,
+      dislikesRaw: [] as Awaited<ReturnType<typeof topByReaction>>,
+    }),
+  ]);
+  return { ...core, ...reactions };
+}
+
 const getCachedLeaderboardsAnonymous = unstable_cache(
-  async () => buildLeaderboards(null, await getCachedTopLists()),
+  async () => buildLeaderboards(null, await getTopLists()),
   ["leaderboards-anonymous"],
   { revalidate: CACHE_SECONDS },
 );
@@ -186,7 +232,7 @@ async function buildLeaderboards(
     coinsBalance: number;
     hiddenFromLeaderboards: boolean;
   } | null,
-  lists: Awaited<ReturnType<typeof getCachedTopLists>>,
+  lists: Awaited<ReturnType<typeof getTopLists>>,
 ): Promise<LeaderboardsData> {
   const { byHours, likesRaw, dislikesRaw, byServerSlots, byCoins } = lists;
 
@@ -202,8 +248,8 @@ async function buildLeaderboards(
       rankByPlaytime(viewer),
       rankByServerSlots(viewer),
       rankByCoins(viewer),
-      rankByReaction(viewer, "like", likes),
-      rankByReaction(viewer, "dislike", dislikes),
+      withTimeout(rankByReaction(viewer, "like", likes), 5_000, null),
+      withTimeout(rankByReaction(viewer, "dislike", dislikes), 5_000, null),
     ]);
   }
 
@@ -228,5 +274,5 @@ export async function getLeaderboards(viewer: {
   hiddenFromLeaderboards: boolean;
 } | null): Promise<LeaderboardsData> {
   if (!viewer) return getCachedLeaderboardsAnonymous();
-  return buildLeaderboards(viewer, await getCachedTopLists());
+  return buildLeaderboards(viewer, await getTopLists());
 }
