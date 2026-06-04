@@ -1,7 +1,6 @@
 import { siteUrl } from "@/lib/site-url";
 
-/** CI publishes tagged builds here; override with LAUNCHER_GITHUB_REPO if needed. */
-const DEFAULT_REPO = "veaix/dopamine-MinecraftLauncher";
+const DEFAULT_REPO = "veaix/dopamine-releases";
 
 type GhAsset = {
   name: string;
@@ -60,7 +59,7 @@ export async function fetchLatestGhRelease(): Promise<GhRelease | null> {
   const repo = (process.env.LAUNCHER_GITHUB_REPO ?? DEFAULT_REPO).trim();
   const res = await fetch(`https://api.github.com/repos/${repo}/releases/latest`, {
     headers: githubHeaders(),
-    next: { revalidate: 600 },
+    cache: "no-store",
   });
   if (!res.ok) return null;
   return (await res.json()) as GhRelease;
@@ -103,7 +102,7 @@ export async function fetchLatestYml(): Promise<string | null> {
 
   const res = await fetch(asset.browser_download_url, {
     headers: githubHeaders(),
-    next: { revalidate: 300 },
+    cache: "no-store",
   });
   if (!res.ok) return null;
 

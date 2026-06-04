@@ -1,5 +1,7 @@
 import { fetchLatestYml, findReleaseAsset } from "@/server/launcher/releases";
 
+export const dynamic = "force-dynamic";
+
 type Params = { params: Promise<{ path?: string[] }> };
 
 export async function GET(_request: Request, { params }: Params) {
