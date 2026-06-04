@@ -74,9 +74,9 @@ function DecorCrystal() {
         <path d="M22 24 L32 38 L42 24" stroke="var(--accent-bright)" strokeWidth="2" strokeLinejoin="round" opacity="0.9" />
         <defs>
           <linearGradient id="decorCrystalFill" x1="16" y1="6" x2="48" y2="58" gradientUnits="userSpaceOnUse">
-            <stop stopColor="#67e8f9" />
-            <stop offset="0.45" stopColor="var(--accent-bright)" />
-            <stop offset="1" stopColor="#0891b2" />
+            <stop stopColor="var(--accent-bright)" />
+            <stop offset="0.45" stopColor="var(--accent)" />
+            <stop offset="1" stopColor="var(--accent-deep)" />
           </linearGradient>
         </defs>
       </svg>
