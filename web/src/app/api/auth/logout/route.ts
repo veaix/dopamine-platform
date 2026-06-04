@@ -1,11 +1,9 @@
 import { cookies } from "next/headers";
-import { json, withSchema } from "@/lib/api";
-import { clearSessionCookies, revokeRefreshToken } from "@/lib/auth";
+import { NextResponse } from "next/server";
+import { authCookieName } from "@/server/auth/session";
 
-export const POST = withSchema(async () => {
-  const jar = await cookies();
-  const refresh = jar.get("dopamine_refresh")?.value;
-  if (refresh) await revokeRefreshToken(refresh);
-  await clearSessionCookies();
-  return json({ ok: true });
-});
+export async function POST() {
+  const cookieStore = await cookies();
+  cookieStore.delete(authCookieName);
+  return NextResponse.json({ ok: true });
+}

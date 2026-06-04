@@ -1,30 +1,39 @@
 import type { Metadata } from "next";
-import { Analytics } from "@vercel/analytics/next";
+import { Manrope, Unbounded } from "next/font/google";
 import "./globals.css";
-import { SiteHeader } from "@/components/marketing/site-header";
-import { SiteFooter } from "@/components/marketing/site-footer";
+import { SiteHeader } from "@/components/site-header";
+import { SiteFooter } from "@/components/site-footer";
+import { AuthProvider } from "@/components/providers/auth-provider";
+import { AuthSessionLoader } from "@/components/auth-session-loader";
+import { baseMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = {
-  title: "dopamine — Minecraft-лаунчер",
-  description:
-    "Современный Minecraft-лаунчер: профили, Modrinth, локальные серверы, облачный аккаунт и статистика.",
-  openGraph: {
-    title: "dopamine — Minecraft-лаунчер",
-    description: "Скачайте лаунчер, создайте аккаунт, поднимайте серверы.",
-    url: "https://dopamine.cfd",
-  },
-};
+const fontBody = Manrope({
+  subsets: ["latin", "cyrillic"],
+  variable: "--font-body",
+  display: "swap",
+  preload: true,
+});
+
+const fontDisplay = Unbounded({
+  subsets: ["latin", "cyrillic"],
+  weight: ["500", "700"],
+  variable: "--font-display",
+  display: "swap",
+  preload: false,
+});
+
+export const metadata: Metadata = baseMetadata();
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="ru" data-theme="dark" suppressHydrationWarning>
-      <body>
-        <div className="site-shell">
+    <html lang="ru" className={`${fontBody.variable} ${fontDisplay.variable}`}>
+      <body className="shell">
+        <AuthProvider initialUser={null}>
+          <AuthSessionLoader />
           <SiteHeader />
-          <main className="site-main">{children}</main>
+          <div className="shell-main">{children}</div>
           <SiteFooter />
-        </div>
-        <Analytics />
+        </AuthProvider>
       </body>
     </html>
   );

@@ -1,15 +1,27 @@
-import Link from "next/link";
 import { AuthForm } from "@/components/auth-form";
+import { PageShell } from "@/components/page-shell";
+import { requireGuest } from "@/lib/auth-guard";
 
-export default function LoginPage() {
+type Props = {
+  searchParams: Promise<{ next?: string; password?: string }>;
+};
+
+export default async function LoginPage({ searchParams }: Props) {
+  await requireGuest();
+  const { next, password } = await searchParams;
+
   return (
-    <div className="auth-page">
-      <div className="auth-card card">
-        <AuthForm mode="login" />
-        <p className="label" style={{ marginTop: "1rem", textAlign: "center" }}>
-          Нет аккаунта? <Link href="/register">Зарегистрироваться</Link>
-        </p>
-      </div>
-    </div>
+    <PageShell
+      narrow
+      decor="login"
+      tag="Вход"
+      title="Аккаунт dopamine"
+      subtitle="Email и пароль — те же, что в лаунчере."
+    >
+      {password === "reset" ? (
+        <p className="info site-page-banner">Пароль изменён. Войдите с новым паролем.</p>
+      ) : null}
+      <AuthForm mode="login" nextPath={next ?? null} />
+    </PageShell>
   );
 }

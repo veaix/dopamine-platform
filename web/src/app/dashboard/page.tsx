@@ -1,38 +1,33 @@
-import { redirect } from "next/navigation";
-import { getSessionUser } from "@/lib/auth";
+import { getDashboardUser } from "@/server/dashboard/profile";
+import { getFriendsBundle } from "@/server/friends/bundle";
+import { getOwnedGiftKeys } from "@/server/keys/inventory";
 import { DashboardClient } from "@/components/dashboard-client";
+import { PageShell } from "@/components/page-shell";
+import { requireUser } from "@/lib/auth-guard";
+import { ensureTrialWindowStarted } from "@/server/trial-server";
+import { db } from "@/server/db";
 
 export default async function DashboardPage() {
-  const user = await getSessionUser();
-  if (!user) redirect("/login");
+  const user = await requireUser("/dashboard");
+  await ensureTrialWindowStarted(user.id);
+  const refreshed = await db.query.users.findFirst({
+    where: (u, { eq: eqFn }) => eqFn(u.id, user.id),
+  });
+  const me = refreshed ?? user;
 
-  const { getDb } = await import("@/lib/db");
-  const { ensureSchema } = await import("@/lib/db");
-  const { devices } = await import("@/db/schema");
-  const { eq } = await import("drizzle-orm");
-  const { resolveEntitlements } = await import("@/lib/entitlements");
-
-  await ensureSchema();
-  const db = getDb();
-  const devs = await db.select().from(devices).where(eq(devices.userId, user.id));
-  const ent = await resolveEntitlements(user);
+  const [initialMe, initialFriends, initialOwnedKeys] = await Promise.all([
+    getDashboardUser(me),
+    getFriendsBundle(me.id),
+    getOwnedGiftKeys(me.id),
+  ]);
 
   return (
-    <div className="site-main--narrow">
-    <DashboardClient
-      user={user}
-      entitlements={ent}
-      devices={devs
-        .filter((d) => !d.revokedAt)
-        .map((d) => ({
-          id: d.id,
-          name: d.name,
-          os: d.os,
-          appVersion: d.appVersion,
-          runningServers: d.runningServers,
-          lastSeenAt: d.lastSeenAt?.toISOString() ?? null,
-        }))}
-    />
-    </div>
+    <PageShell className="page-dashboard" decor="dashboard">
+      <DashboardClient
+        initialMe={initialMe}
+        initialFriends={initialFriends}
+        initialOwnedKeys={initialOwnedKeys}
+      />
+    </PageShell>
   );
 }

@@ -1,35 +1,39 @@
 {
-  "name": "@dopamine/web",
-  "version": "1.0.0",
+  "name": "web",
+  "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --port 3000",
+    "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "typecheck": "tsc --noEmit",
-    "db:push": "drizzle-kit push",
-    "db:seed": "tsx scripts/seed.ts"
+    "lint": "eslint",
+    "db:generate": "drizzle-kit generate",
+    "db:push": "drizzle-kit push"
   },
   "dependencies": {
-    "@libsql/client": "^0.14.0",
-    "@vercel/analytics": "^2.0.1",
-    "bcryptjs": "^2.4.3",
-    "drizzle-orm": "^0.39.3",
-    "jose": "^6.0.10",
-    "nanoid": "^5.1.5",
-    "next": "^15.2.4",
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0",
-    "zod": "^3.24.2"
+    "@libsql/client": "^0.17.3",
+    "@marsidev/react-turnstile": "^1.5.2",
+    "bcryptjs": "^3.0.3",
+    "disposable-email-domains": "^1.0.62",
+    "drizzle-orm": "^0.45.2",
+    "jose": "^6.2.3",
+    "next": "16.2.6",
+    "nodemailer": "^8.0.9",
+    "otplib": "^13.4.0",
+    "qrcode": "^1.5.4",
+    "react": "19.2.4",
+    "react-dom": "19.2.4",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@types/bcryptjs": "^2.4.6",
-    "@types/node": "^22.13.10",
-    "@types/react": "^19.0.10",
-    "@types/react-dom": "^19.0.4",
-    "dotenv": "^16.4.7",
-    "drizzle-kit": "^0.30.5",
-    "tsx": "^4.19.3",
-    "typescript": "^5.8.2"
+    "@types/node": "^20",
+    "@types/nodemailer": "^8.0.0",
+    "@types/qrcode": "^1.5.6",
+    "@types/react": "19.2.15",
+    "@types/react-dom": "^19",
+    "drizzle-kit": "^0.31.10",
+    "eslint": "^9",
+    "eslint-config-next": "16.2.6",
+    "typescript": "5.9.3"
   }
 }

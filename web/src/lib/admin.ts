@@ -1,14 +1,7 @@
-import type { NextResponse } from "next/server";
-import { err } from "@/lib/api";
-import { getSessionUser, type SessionUser } from "@/lib/auth";
+import type { users } from "@/server/db/schema";
 
-export type CreatorAuth =
-  | { ok: true; user: SessionUser }
-  | { ok: false; response: NextResponse };
+type UserRow = typeof users.$inferSelect;
 
-export async function requireCreator(): Promise<CreatorAuth> {
-  const user = await getSessionUser();
-  if (!user) return { ok: false, response: err("unauthorized", 401) };
-  if (user.role !== "creator") return { ok: false, response: err("forbidden", 403) };
-  return { ok: true, user };
+export function isAdmin(user: Pick<UserRow, "role">) {
+  return user.role === "creator" || user.role === "admin";
 }

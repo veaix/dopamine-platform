@@ -1,162 +1,441 @@
 "use client";
 
-import { useState } from "react";
-import type { EntitlementView } from "@/lib/entitlements";
-import type { SessionUser } from "@/lib/auth";
 
-type DeviceRow = {
-  id: string;
-  name: string;
-  os: string | null;
-  appVersion: string | null;
-  runningServers: number;
-  lastSeenAt: string | null;
+
+import dynamic from "next/dynamic";
+
+import { useSearchParams } from "next/navigation";
+
+import { Suspense, useCallback, useEffect, useState } from "react";
+
+import { WelcomePromoBanner } from "@/components/welcome-promo-banner";
+import { useAuth } from "@/components/providers/auth-provider";
+
+import { ProfileHeader } from "@/components/dashboard/profile-header";
+
+import type { FriendsData } from "@/server/friends/bundle";
+
+import type { OwnedGiftKey } from "@/server/keys/inventory";
+
+import type { DashboardUser } from "@/server/dashboard/profile";
+
+
+
+const EconomyPanel = dynamic(
+
+  () => import("@/components/dashboard/economy-panel").then((m) => ({ default: m.EconomyPanel })),
+
+  { loading: () => <p className="muted">Загрузка…</p> },
+
+);
+
+const FriendsPanel = dynamic(
+
+  () => import("@/components/dashboard/friends-panel").then((m) => ({ default: m.FriendsPanel })),
+
+  { loading: () => <p className="muted">Загрузка…</p> },
+
+);
+
+const ProfileEditPanel = dynamic(
+
+  () => import("@/components/dashboard/profile-edit-panel").then((m) => ({ default: m.ProfileEditPanel })),
+
+  { loading: () => <p className="muted">Загрузка…</p> },
+
+);
+
+const SecurityPanel = dynamic(
+
+  () => import("@/components/dashboard/security-panel").then((m) => ({ default: m.SecurityPanel })),
+
+  { loading: () => <p className="muted">Загрузка…</p> },
+
+);
+
+const MediaReferralPanel = dynamic(
+
+  () => import("@/components/dashboard/media-referral-panel").then((m) => ({ default: m.MediaReferralPanel })),
+
+  { loading: () => <p className="muted">Загрузка…</p> },
+
+);
+
+
+
+type Tab = "economy" | "friends" | "profile" | "security" | "media";
+
+
+
+const BASE_TABS: { id: Tab; label: string }[] = [
+
+  { id: "economy", label: "Монеты и ключи" },
+
+  { id: "friends", label: "Друзья" },
+
+  { id: "profile", label: "Редактировать профиль" },
+
+  { id: "security", label: "Безопасность" },
+
+];
+
+
+
+function tabsForRole(role: string): { id: Tab; label: string }[] {
+  if (role === "mediagigant") {
+    return [{ id: "media", label: "Рефералка" }, ...BASE_TABS];
+  }
+  return BASE_TABS;
+}
+
+
+
+type Props = {
+
+  initialMe: DashboardUser;
+
+  initialFriends: FriendsData;
+
+  initialOwnedKeys: OwnedGiftKey[];
+
 };
 
-export function DashboardClient({
-  user,
-  entitlements,
-  devices,
-}: {
-  user: SessionUser;
-  entitlements: EntitlementView;
-  devices: DeviceRow[];
-}) {
-  const [linkCode, setLinkCode] = useState<string | null>(null);
-  const [linkExpires, setLinkExpires] = useState<string | null>(null);
-  const [keyInput, setKeyInput] = useState("");
-  const [message, setMessage] = useState("");
-  const [ent, setEnt] = useState(entitlements);
-  const [devList, setDevList] = useState(devices);
 
-  async function createLinkCode() {
-    setMessage("");
-    const res = await fetch("/api/devices/link-code", { method: "POST" });
-    const data = await res.json();
-    if (!res.ok) {
-      setMessage("Не удалось создать код");
-      return;
+
+function DashboardInner({ initialMe, initialFriends, initialOwnedKeys }: Props) {
+
+  const searchParams = useSearchParams();
+  const { refresh: refreshAuth } = useAuth();
+
+  const tabParam = searchParams.get("tab") as Tab | null;
+  const refPromo = searchParams.get("ref")?.trim().toUpperCase() ?? "";
+
+  const [tab, setTab] = useState<Tab>("economy");
+
+  const [me, setMe] = useState(initialMe);
+
+  const [friends, setFriends] = useState(initialFriends);
+
+  const [ownedKeys, setOwnedKeys] = useState(initialOwnedKeys);
+
+  const [showWelcome, setShowWelcome] = useState(false);
+
+  const [dashError, setDashError] = useState("");
+
+
+
+  const refreshAll = useCallback(async () => {
+    try {
+      const [meRes, keysRes, friendsRes] = await Promise.all([
+        fetch("/api/me"),
+        fetch("/api/economy/buy-gift-key"),
+        fetch("/api/friends/list"),
+      ]);
+
+      const meData = await meRes.json();
+      if (!meRes.ok || !meData.user) {
+        window.location.href = "/login?next=/dashboard";
+        return;
+      }
+      setMe(meData.user);
+
+      const keysData = await keysRes.json();
+      if (keysRes.ok) setOwnedKeys(keysData.keys ?? []);
+
+      if (friendsRes.ok) {
+        const friendsData = await friendsRes.json();
+        setFriends(friendsData);
+      }
+
+      await refreshAuth();
+    } catch {
+      /* ignore transient network errors */
     }
-    setLinkCode(data.code);
-    setLinkExpires(data.expiresAt);
-  }
+  }, [refreshAuth]);
 
-  async function redeemKey(e: React.FormEvent) {
-    e.preventDefault();
-    setMessage("");
-    const res = await fetch("/api/keys/redeem", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ code: keyInput }),
-    });
-    const data = await res.json();
-    if (!res.ok) {
-      setMessage(
-        data.error === "invalid_key"
-          ? "Неверный или просроченный ключ"
-          : data.error === "already_redeemed"
-            ? "Ключ уже использован"
-            : "Ошибка активации",
-      );
-      return;
+  const reloadMe = useCallback(() => {
+    void refreshAll();
+  }, [refreshAll]);
+
+  const reloadOwnedKeys = useCallback(() => {
+    void fetch("/api/economy/buy-gift-key")
+      .then(async (r) => {
+        if (!r.ok) return;
+        const d = await r.json();
+        setOwnedKeys(d.keys ?? []);
+      })
+      .catch(() => {});
+  }, []);
+
+
+
+  const tabs = tabsForRole(me.role);
+
+  useEffect(() => {
+
+    const t = searchParams.get("tab") as Tab | null;
+
+    const next = t && tabs.some((x) => x.id === t) ? t : tabs[0]?.id ?? "economy";
+
+    setTab(next);
+
+  }, [searchParams, me.role]);
+
+  useEffect(() => {
+
+    function onPopState() {
+
+      const params = new URLSearchParams(window.location.search);
+
+      const t = params.get("tab") as Tab | null;
+
+      const next = t && tabs.some((x) => x.id === t) ? t : tabs[0]?.id ?? "economy";
+
+      setTab(next);
+
     }
-    setEnt(data.entitlements);
-    setKeyInput("");
-    setMessage("Ключ активирован");
+
+    window.addEventListener("popstate", onPopState);
+
+    return () => window.removeEventListener("popstate", onPopState);
+
+  }, [me.role]);
+
+
+
+  useEffect(() => {
+
+    const welcomeQuery = searchParams.get("welcome") === "1";
+
+    const alreadyShown = sessionStorage.getItem("dopamine_welcome_shown") === "1";
+
+    if (welcomeQuery && !alreadyShown) setShowWelcome(true);
+
+  }, [searchParams]);
+
+
+
+  useEffect(() => {
+    if (!showWelcome || me.canRedeemWelcomePromo) return;
+    sessionStorage.setItem("dopamine_welcome_shown", "1");
+    setShowWelcome(false);
+    const url = new URL(window.location.href);
+    url.searchParams.delete("welcome");
+    window.history.replaceState(null, "", url.pathname + url.search);
+  }, [showWelcome, me.canRedeemWelcomePromo]);
+
+
+
+  function replaceUrl(next: Tab) {
+
+    const url = new URL(window.location.href);
+
+    const defaultTab = tabsForRole(me.role)[0]?.id ?? "economy";
+
+    if (next === defaultTab) url.searchParams.delete("tab");
+
+    else url.searchParams.set("tab", next);
+
+    window.history.replaceState(null, "", url.pathname + url.search);
+
   }
 
-  async function revokeDevice(id: string) {
-    await fetch(`/api/devices/${id}/revoke`, { method: "POST" });
-    setDevList((list) => list.filter((d) => d.id !== id));
+
+
+  function dismissWelcome() {
+
+    sessionStorage.setItem("dopamine_welcome_shown", "1");
+
+    setShowWelcome(false);
+
+    const url = new URL(window.location.href);
+
+    url.searchParams.delete("welcome");
+
+    window.history.replaceState(null, "", url.pathname + url.search);
+
   }
+
+
+
+  function setTabAndUrl(next: Tab) {
+
+    setTab(next);
+
+    replaceUrl(next);
+
+  }
+
+
+
+  const showWelcomeBanner = showWelcome && me.canRedeemWelcomePromo;
+
+
 
   return (
-    <div>
-      <div className="page-header">
-      <h1>Личный кабинет</h1>
-      <p className="label">
-        {user.email} · роль <span className="badge">{user.role}</span>
-      </p>
-      </div>
 
-      <div className="grid-2" style={{ marginTop: "0.5rem" }}>
-        <div className="card">
-          <div className="label">Создание серверов</div>
-          <p style={{ fontSize: "1.25rem", margin: "0.35rem 0" }}>
-            {ent.canCreateServers ? "Разрешено" : "Заблокировано"}
-            {ent.serversGated && !ent.canCreateServers && (
-              <span className="label"> — нужен ключ активации</span>
-            )}
-          </p>
-          <p className="label">Лимит серверов: {ent.maxServers}</p>
-        </div>
-        <div className="card">
-          <div className="label">Привязка лаунчера</div>
-          <button type="button" className="btn btn-primary" onClick={createLinkCode}>
-            Получить код
+    <div className="stack dash">
+
+      <ProfileHeader me={me} />
+
+      {dashError ? <p className="form-error">{dashError}</p> : null}
+
+
+
+      {showWelcomeBanner ? (
+
+        <WelcomePromoBanner
+
+          onRedeemed={() => {
+
+            dismissWelcome();
+
+            reloadMe();
+
+          }}
+
+        />
+
+      ) : null}
+
+
+
+      <div className="tabs dash-tabs" role="tablist">
+
+        {tabs.map(({ id, label }) => (
+
+          <button
+
+            key={id}
+
+            type="button"
+
+            role="tab"
+
+            aria-selected={tab === id}
+
+            className={`tab ${tab === id ? "active" : ""}`}
+
+            onClick={() => setTabAndUrl(id)}
+
+          >
+
+            {label}
+
           </button>
-          {linkCode && (
-            <div style={{ marginTop: "1rem" }}>
-              <div className="code-box">{linkCode}</div>
-              <p className="label" style={{ marginTop: "0.5rem" }}>
-                Действует до {linkExpires ? new Date(linkExpires).toLocaleTimeString() : "—"}. Введите в
-                лаунчере: Настройки → Аккаунт dopamine.
-              </p>
-            </div>
-          )}
-        </div>
+
+        ))}
+
       </div>
 
-      <div className="card" style={{ marginTop: "1rem" }}>
-        <h3>Активировать ключ</h3>
-        <form onSubmit={redeemKey}>
-          <input
-            placeholder="DOP-XXXX-XXXX"
-            value={keyInput}
-            onChange={(e) => setKeyInput(e.target.value)}
+
+
+      {tab === "economy" ? (
+
+        <div role="tabpanel">
+
+          <EconomyPanel
+
+            coinsBalance={me.coinsBalance}
+
+            serverSlots={me.availableServerSlots}
+
+            trial={me.trial}
+
+            initialOwnedKeys={ownedKeys}
+
+            initialPromoCode={refPromo}
+
+            onUpdated={() => {
+
+              reloadMe();
+
+              reloadOwnedKeys();
+
+            }}
+
           />
-          <button type="submit" className="btn btn-primary" style={{ marginTop: "0.75rem" }}>
-            Активировать
-          </button>
-        </form>
-        {message && <p style={{ marginTop: "0.75rem" }}>{message}</p>}
-      </div>
 
-      <div className="card">
-        <h3>Устройства</h3>
-        {devList.length === 0 ? (
-          <p className="label">Лаунчер ещё не привязан</p>
-        ) : (
-          <table>
-            <thead>
-              <tr>
-                <th>Имя</th>
-                <th>ОС</th>
-                <th>Версия</th>
-                <th>Серверов</th>
-                <th>Онлайн</th>
-                <th />
-              </tr>
-            </thead>
-            <tbody>
-              {devList.map((d) => (
-                <tr key={d.id}>
-                  <td>{d.name}</td>
-                  <td>{d.os ?? "—"}</td>
-                  <td>{d.appVersion ?? "—"}</td>
-                  <td>{d.runningServers}</td>
-                  <td>{d.lastSeenAt ? new Date(d.lastSeenAt).toLocaleString() : "—"}</td>
-                  <td>
-                    <button type="button" className="btn btn-danger" onClick={() => revokeDevice(d.id)}>
-                      Отвязать
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
+        </div>
+
+      ) : null}
+
+
+
+      {tab === "media" ? (
+
+        <div role="tabpanel">
+
+          <MediaReferralPanel onError={setDashError} />
+
+        </div>
+
+      ) : null}
+
+
+
+      {tab === "friends" ? (
+
+        <div role="tabpanel">
+
+          <FriendsPanel
+
+            initial={friends}
+
+            ownedKeys={ownedKeys}
+
+            onRefresh={() => void refreshAll()}
+
+          />
+
+        </div>
+
+      ) : null}
+
+
+
+      {tab === "profile" ? (
+
+        <div role="tabpanel">
+
+          <ProfileEditPanel me={me} onUpdated={reloadMe} />
+
+        </div>
+
+      ) : null}
+
+
+
+      {tab === "security" ? (
+
+        <div role="tabpanel">
+
+          <SecurityPanel email={me.email} totpEnabled={me.totpEnabled} onUpdated={reloadMe} />
+
+        </div>
+
+      ) : null}
+
     </div>
+
   );
+
 }
+
+
+
+export function DashboardClient(props: Props) {
+
+  return (
+
+    <Suspense fallback={<p className="muted">Загрузка…</p>}>
+
+      <DashboardInner {...props} />
+
+    </Suspense>
+
+  );
+
+}
+
+

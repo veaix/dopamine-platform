@@ -1,38 +1,39 @@
-import { desc } from "drizzle-orm";
-import { json, withSchema } from "@/lib/api";
-import { requireCreator } from "@/lib/admin";
-import { getDb } from "@/lib/db";
-import { users, entitlements, devices } from "@/db/schema";
-import { eq, sql } from "drizzle-orm";
+import { like, or } from "drizzle-orm";
+import { db, schema } from "@/server/db";
+import { requireAdminApi } from "@/server/admin/guard";
+import { json } from "@/lib/api";
+export async function GET(request: Request) {
+  const { error } = await requireAdminApi("users");
+  if (error) return error;
 
-export const GET = withSchema(async () => {
-  const auth = await requireCreator();
-  if (!auth.ok) return auth.response;
+  const q = new URL(request.url).searchParams.get("q")?.trim() ?? "";
+  const rows = q
+    ? await db
+        .select()
+        .from(schema.users)
+        .where(
+          or(
+            like(schema.users.nickname, `%${q}%`),
+            like(schema.users.email, `%${q}%`),
+            like(schema.users.lastLoginIp, `%${q}%`),
+          ),
+        )
+        .limit(100)
+    : await db.select().from(schema.users).limit(100);
 
-  const db = getDb();
-  const rows = await db.select().from(users).orderBy(desc(users.createdAt)).limit(200);
-
-  const result = await Promise.all(
-    rows.map(async (u) => {
-      const ent = (await db.select().from(entitlements).where(eq(entitlements.userId, u.id)).limit(1))[0];
-      const devCount = (
-        await db
-          .select({ c: sql<number>`count(*)` })
-          .from(devices)
-          .where(eq(devices.userId, u.id))
-      )[0];
-      return {
-        id: u.id,
-        email: u.email,
-        role: u.role,
-        banned: Boolean(u.bannedAt),
-        canCreateServers: ent?.canCreateServers ?? false,
-        maxServers: ent?.maxServers ?? 0,
-        devices: Number(devCount?.c ?? 0),
-        createdAt: u.createdAt.toISOString(),
-      };
-    }),
-  );
-
-  return json({ users: result });
-});
+  return json({
+    users: rows.map((u) => ({
+      id: u.id,
+      nickname: u.nickname,
+      email: u.email,
+      role: u.role,
+      coinsBalance: u.coinsBalance,
+      availableServerSlots: u.availableServerSlots,
+      playtimeSeconds: u.playtimeSeconds,
+      isBlocked: u.isBlocked,
+      lastLoginAt: u.lastLoginAt,
+      lastLoginIp: u.lastLoginIp,
+      createdAt: u.createdAt,
+    })),
+  });
+}

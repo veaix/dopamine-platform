@@ -1,29 +1,39 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-const CORS_HEADERS: Record<string, string> = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "GET, POST, PATCH, DELETE, OPTIONS",
-  "Access-Control-Allow-Headers":
-    "Content-Type, Authorization, X-Device-Token, X-Heartbeat-Sig",
-};
+const AUTH_COOKIE = "dopamine_access";
+
+const AUTH_REQUIRED_PREFIXES = ["/dashboard", "/admin"];
 
 export function middleware(request: NextRequest) {
-  if (!request.nextUrl.pathname.startsWith("/api/")) {
-    return NextResponse.next();
+  const host = (request.headers.get("host") ?? request.nextUrl.hostname).split(":")[0];
+
+  if (host === "dopamine.cfd") {
+    const url = request.nextUrl.clone();
+    url.hostname = "www.dopamine.cfd";
+    url.protocol = "https:";
+    return NextResponse.redirect(url, 301);
   }
 
-  if (request.method === "OPTIONS") {
-    return new NextResponse(null, { status: 204, headers: CORS_HEADERS });
+  const { pathname } = request.nextUrl;
+
+  if (pathname === "/downloads/dopamine-Setup.exe") {
+    return NextResponse.redirect(new URL("/api/download/windows", request.url), 302);
   }
 
-  const response = NextResponse.next();
-  for (const [k, v] of Object.entries(CORS_HEADERS)) {
-    response.headers.set(k, v);
+  const hasSession = Boolean(request.cookies.get(AUTH_COOKIE)?.value);
+
+  if (!hasSession && AUTH_REQUIRED_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`))) {
+    const login = new URL("/login", request.url);
+    login.searchParams.set("next", pathname);
+    return NextResponse.redirect(login);
   }
-  return response;
+
+  return NextResponse.next();
 }
 
 export const config = {
-  matcher: "/api/:path*",
+  matcher: [
+    "/((?!_next/static|_next/image|favicon\\.ico|yandex_.*\\.html|google.*\\.html|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|woff2?)$).*)",
+  ],
 };

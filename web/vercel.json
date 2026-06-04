@@ -1,6 +1,18 @@
 {
-  "buildCommand": "npm run build",
-  "installCommand": "npm install",
   "framework": "nextjs",
-  "regions": ["fra1"]
+  "installCommand": "npm install --workspaces=false",
+  "buildCommand": "node scripts/migrate-safe.mjs && next build",
+  "redirects": [
+    {
+      "source": "/:path*",
+      "has": [{ "type": "host", "value": "dopamine.cfd" }],
+      "destination": "https://www.dopamine.cfd/:path*",
+      "permanent": true
+    }
+  ],
+  "functions": {
+    "src/app/api/setup/reset-db/route.ts": {
+      "includeFiles": "drizzle/**"
+    }
+  }
 }

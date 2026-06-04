@@ -1,15 +1,24 @@
-import Link from "next/link";
+import { Suspense } from "react";
 import { AuthForm } from "@/components/auth-form";
+import { PageShell } from "@/components/page-shell";
+import { RegisterRefCapture } from "@/components/register-ref-capture";
+import { requireGuest } from "@/lib/auth-guard";
 
-export default function RegisterPage() {
+export default async function RegisterPage() {
+  await requireGuest();
+
   return (
-    <div className="auth-page">
-      <div className="auth-card card">
-        <AuthForm mode="register" />
-        <p className="label" style={{ marginTop: "1rem", textAlign: "center" }}>
-          Уже есть аккаунт? <Link href="/login">Войти</Link>
-        </p>
-      </div>
-    </div>
+    <PageShell
+      narrow
+      decor="register"
+      tag="Регистрация"
+      title="Создай аккаунт"
+      subtitle="Один профиль для сайта и лаунчера. Аккаунт создаётся после подтверждения email."
+    >
+      <Suspense fallback={null}>
+        <RegisterRefCapture />
+      </Suspense>
+      <AuthForm mode="register" />
+    </PageShell>
   );
 }
