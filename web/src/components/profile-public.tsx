@@ -4,7 +4,8 @@
 
 import Link from "next/link";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import type { ProfileViewerEntry } from "@/server/profile/views";
 
 import type { PublicProfile } from "@/server/profile/public";
 import { BrokenHeartIcon, HeartIcon } from "@/components/reaction-icons";
@@ -12,11 +13,35 @@ import { getPublicRoleBadge } from "@/lib/role-labels";
 
 
 
-export function ProfilePublic({ initialProfile }: { initialProfile: PublicProfile }) {
-
+export function ProfilePublic({
+  initialProfile,
+  loadViewersLazy = false,
+}: {
+  initialProfile: PublicProfile;
+  loadViewersLazy?: boolean;
+}) {
   const [p, setP] = useState(initialProfile);
-
+  const [viewersLoading, setViewersLoading] = useState(loadViewersLazy);
   const [err, setErr] = useState("");
+
+  useEffect(() => {
+    if (!loadViewersLazy) return;
+    let cancelled = false;
+    void fetch(`/api/profiles/${encodeURIComponent(p.nickname)}/viewers`, {
+      credentials: "same-origin",
+    })
+      .then((r) => r.json())
+      .then((d: { viewers?: ProfileViewerEntry[]; error?: string }) => {
+        if (cancelled) return;
+        if (d.viewers) setP((prev) => ({ ...prev, recentViewers: d.viewers! }));
+      })
+      .finally(() => {
+        if (!cancelled) setViewersLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [loadViewersLazy, p.nickname]);
 
 
 
@@ -27,11 +52,13 @@ export function ProfilePublic({ initialProfile }: { initialProfile: PublicProfil
       .then((r) => r.json())
 
       .then((d) => {
-
         if (d.error) setErr(d.error);
-
-        else setP(d.profile);
-
+        else if (d.profile) {
+          setP((prev) => ({
+            ...d.profile,
+            recentViewers: d.profile.recentViewers?.length ? d.profile.recentViewers : prev.recentViewers,
+          }));
+        }
       });
 
 
@@ -212,13 +239,15 @@ export function ProfilePublic({ initialProfile }: { initialProfile: PublicProfil
 
 
 
-      {p.recentViewers ? (
+      {loadViewersLazy || p.recentViewers.length > 0 ? (
 
         <section className="profile-viewers stack sm">
 
           <h2 className="profile-viewers-title">Недавние просмотры</h2>
 
-          {p.recentViewers.length === 0 ? (
+          {viewersLoading ? (
+            <p className="muted">Загрузка…</p>
+          ) : p.recentViewers.length === 0 ? (
 
             <p className="muted">
 

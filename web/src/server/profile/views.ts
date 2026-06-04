@@ -53,7 +53,6 @@ export async function getRecentProfileViewers(
       .select({
         id: schema.users.id,
         nickname: schema.users.nickname,
-        avatarUrl: schema.users.avatarUrl,
       })
       .from(schema.users)
       .where(inArray(schema.users.id, viewerIds)),
@@ -82,7 +81,7 @@ export async function getRecentProfileViewers(
       if (!u) return null;
       return {
         nickname: u.nickname,
-        avatarUrl: u.avatarUrl,
+        avatarUrl: null,
         viewedAt: v.viewedAt.toISOString(),
         reaction: reactionByViewer.get(v.viewerUserId) ?? null,
       };

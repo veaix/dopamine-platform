@@ -226,7 +226,9 @@ function TopList({
             <li key={r.nickname}>
               <span className="rank">{i + 1}</span>
               <div className="avatar sm placeholder">{r.nickname[0]?.toUpperCase()}</div>
-              <Link href={`/u/${r.nickname}`}>{r.nickname}</Link>
+              <Link href={`/u/${r.nickname}`} prefetch={false}>
+                {r.nickname}
+              </Link>
               <span className="value">{format(Number(r.value))}</span>
             </li>
           ))
@@ -238,7 +240,9 @@ function TopList({
           <div className="top-me-row">
             <span className="rank">{me.rank}</span>
             <div className="avatar sm placeholder">{me.nickname[0]?.toUpperCase()}</div>
-            <Link href={`/u/${me.nickname}`}>{me.nickname}</Link>
+            <Link href={`/u/${me.nickname}`} prefetch={false}>
+              {me.nickname}
+            </Link>
             <span className="value">{format(Number(me.value))}</span>
           </div>
         </div>

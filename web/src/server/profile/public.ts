@@ -1,9 +1,10 @@
 import { eq } from "drizzle-orm";
 import { db } from "@/server/db";
-import { findUserByNickname } from "@/server/users/lookup";
 import { parseSocialLinks } from "@/lib/social";
 import { getFriendRelation, getProfileReactionCounts } from "@/lib/profile-stats";
 import { getRecentProfileViewers, recordProfileView } from "@/server/profile/views";
+import { findUserProfileByNickname } from "@/server/profile/lookup";
+import { trimAvatarUrl } from "@/lib/trim-avatar";
 import { isAdmin } from "@/lib/admin";
 import { isEmailVerifiedForAuth } from "@/server/auth/email-verification";
 
@@ -22,39 +23,41 @@ export type PublicProfile = {
   email?: string;
 };
 
-export async function getPublicProfile(
+export type PublicProfileCore = Omit<PublicProfile, "recentViewers"> & {
+  targetUserId: string;
+};
+
+export async function getPublicProfileCore(
   nickname: string,
   viewer: { id: string; role: string } | null,
-): Promise<PublicProfile | null> {
-  const target = await findUserByNickname(nickname);
+): Promise<PublicProfileCore | null> {
+  const target = await findUserProfileByNickname(nickname);
   if (!target) return null;
-  const profilePublic =
-    Boolean(target.emailVerifiedAt) || isEmailVerifiedForAuth(target);
+
+  const profilePublic = Boolean(target.emailVerifiedAt) || isEmailVerifiedForAuth(target);
   if (!profilePublic) {
     if (!viewer || viewer.id !== target.id) return null;
   }
 
   const viewerId = viewer?.id ?? null;
-  if (viewerId && viewerId !== target.id) {
-    void recordProfileView(target.id, viewerId);
-  }
 
-  const [reactions, relation, myReactionRow, recentViewers] = await Promise.all([
+  const [reactions, relation, myReactionRow] = await Promise.all([
     getProfileReactionCounts(target.id),
     getFriendRelation(viewerId, target.id),
     viewerId && viewerId !== target.id
       ? db.query.profileReactions.findFirst({
           where: (pr, { and: andFn }) =>
             andFn(eq(pr.targetUserId, target.id), eq(pr.actorUserId, viewerId)),
+          columns: { reaction: true },
         })
       : Promise.resolve(null),
-    getRecentProfileViewers(target.id),
   ]);
 
   return {
+    targetUserId: target.id,
     nickname: target.nickname,
     role: target.role,
-    avatarUrl: target.avatarUrl,
+    avatarUrl: trimAvatarUrl(target.avatarUrl),
     bio: target.bio,
     social: parseSocialLinks(target.socialLinksJson),
     playtimeSeconds: target.playtimeSeconds,
@@ -62,8 +65,28 @@ export async function getPublicProfile(
     dislikes: reactions.dislikes,
     relation,
     myReaction: (myReactionRow?.reaction as "like" | "dislike") ?? null,
-    recentViewers,
     email:
       viewer && (viewer.id === target.id || isAdmin(viewer)) ? target.email : undefined,
   };
+}
+
+export async function getPublicProfile(
+  nickname: string,
+  viewer: { id: string; role: string } | null,
+): Promise<PublicProfile | null> {
+  const core = await getPublicProfileCore(nickname, viewer);
+  if (!core) return null;
+
+  const recentViewers = await getRecentProfileViewers(core.targetUserId);
+  const { targetUserId: _id, ...rest } = core;
+  return { ...rest, recentViewers };
+}
+
+export async function recordProfileViewForNickname(
+  nickname: string,
+  viewerUserId: string,
+) {
+  const target = await findUserProfileByNickname(nickname);
+  if (!target || target.id === viewerUserId) return;
+  await recordProfileView(target.id, viewerUserId);
 }

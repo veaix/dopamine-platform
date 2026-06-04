@@ -314,7 +314,7 @@ export function FriendsPanel({
                     </div>
                   ) : null}
                   <div className="row">
-                    <Link href={`/u/${f.nickname}`} className="btn sm secondary">
+                    <Link href={`/u/${f.nickname}`} className="btn sm secondary" prefetch={false}>
                       Профиль
                     </Link>
                     <button
@@ -345,7 +345,9 @@ function FriendRow({ nickname, avatarUrl }: { nickname: string; avatarUrl: strin
       ) : (
         <div className="avatar sm placeholder">{nickname[0]?.toUpperCase()}</div>
       )}
-      <Link href={`/u/${nickname}`}>{nickname}</Link>
+      <Link href={`/u/${nickname}`} prefetch={false}>
+        {nickname}
+      </Link>
     </div>
   );
 }
