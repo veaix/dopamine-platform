@@ -1,12 +1,11 @@
+import { unstable_cache } from "next/cache";
 import { eq } from "drizzle-orm";
 import { db } from "@/server/db";
 import { getProfileReactionCounts } from "@/lib/profile-stats";
-import {
-  ensureTrialWindowStarted,
-  getTrialServerInfoForUser,
-  type TrialServerInfo,
-} from "@/server/trial-server";
+import { getTrialServerInfoForUser, type TrialServerInfo } from "@/server/trial-server";
 import { parseSocialLinks } from "@/lib/social";
+import { trimAvatarUrl } from "@/lib/trim-avatar";
+import type { DashboardUserRow } from "@/server/dashboard/load-user";
 
 export const NICKNAME_CHANGE_COINS = 5;
 export const BIO_EDIT_COOLDOWN_MS = 24 * 60 * 60 * 1000;
@@ -33,27 +32,21 @@ export type DashboardUser = {
   trial: TrialServerInfo;
 };
 
-export async function getDashboardUser(user: {
-  id: string;
-  nickname: string;
-  email: string;
-  role: string;
-  avatarUrl: string | null;
-  bio: string | null;
-  socialLinksJson: string;
-  coinsBalance: number;
-  availableServerSlots: number;
-  playtimeSeconds: number;
-  totpEnabled: boolean;
-  bioEditedAt: Date | null;
-  trialWindowStartedAt: Date | null;
-  trialServerUsedAt: Date | null;
-}): Promise<DashboardUser> {
-  const [reactions, welcomePromo] = await Promise.all([
-    getProfileReactionCounts(user.id),
+const getCachedWelcomePromo = unstable_cache(
+  async () =>
     db.query.promoCodes.findFirst({
       where: (p, { eq: eqFn }) => eqFn(p.code, "WELCOME5"),
+      columns: { id: true, isActive: true },
     }),
+  ["promo-welcome5"],
+  { revalidate: 300 },
+);
+
+export async function getDashboardUser(user: DashboardUserRow): Promise<DashboardUser> {
+  const [reactions, welcomePromo, trial] = await Promise.all([
+    getProfileReactionCounts(user.id),
+    getCachedWelcomePromo(),
+    getTrialServerInfoForUser(user),
   ]);
 
   let welcomePromoRedeemed = false;
@@ -61,6 +54,7 @@ export async function getDashboardUser(user: {
     const redeemed = await db.query.promoRedemptions.findFirst({
       where: (pr, { and: andFn }) =>
         andFn(eq(pr.userId, user.id), eq(pr.promoCodeId, welcomePromo.id)),
+      columns: { id: true },
     });
     welcomePromoRedeemed = Boolean(redeemed);
   }
@@ -76,7 +70,7 @@ export async function getDashboardUser(user: {
     nickname: user.nickname,
     email: user.email,
     role: user.role,
-    avatarUrl: user.avatarUrl,
+    avatarUrl: trimAvatarUrl(user.avatarUrl),
     bio: user.bio,
     social: parseSocialLinks(user.socialLinksJson),
     coinsBalance: user.coinsBalance,
@@ -90,6 +84,6 @@ export async function getDashboardUser(user: {
     canEditBio,
     bioEditCooldownHours: canEditBio ? 0 : Math.ceil(bioCooldownLeft / (60 * 60 * 1000)),
     nicknameChangeCost: NICKNAME_CHANGE_COINS,
-    trial: await getTrialServerInfoForUser(user),
+    trial,
   };
 }

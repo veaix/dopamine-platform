@@ -73,6 +73,12 @@ export async function ensureTrialWindowStarted(userId: string) {
 
   const user = await db.query.users.findFirst({
     where: (u, { eq: eqFn }) => eqFn(u.id, userId),
+    columns: {
+      id: true,
+      trialWindowStartedAt: true,
+      emailVerifiedAt: true,
+      createdAt: true,
+    },
   });
   if (!user || user.trialWindowStartedAt) return;
 

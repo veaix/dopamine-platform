@@ -91,18 +91,14 @@ function tabsForRole(role: string): { id: Tab; label: string }[] {
 
 
 type Props = {
-
   initialMe: DashboardUser;
-
   initialFriends: FriendsData;
-
   initialOwnedKeys: OwnedGiftKey[];
-
+  /** Friends + gift keys load after shell (faster first paint). */
+  loadExtrasLazy?: boolean;
 };
 
-
-
-function DashboardInner({ initialMe, initialFriends, initialOwnedKeys }: Props) {
+function DashboardInner({ initialMe, initialFriends, initialOwnedKeys, loadExtrasLazy = false }: Props) {
 
   const searchParams = useSearchParams();
   const { refresh: refreshAuth } = useAuth();
@@ -121,8 +117,33 @@ function DashboardInner({ initialMe, initialFriends, initialOwnedKeys }: Props) 
   const [showWelcome, setShowWelcome] = useState(false);
 
   const [dashError, setDashError] = useState("");
+  const [extrasLoading, setExtrasLoading] = useState(loadExtrasLazy);
 
+  const loadExtras = useCallback(async () => {
+    const [friendsRes, keysRes] = await Promise.all([
+      fetch("/api/friends/list", { credentials: "same-origin" }),
+      fetch("/api/economy/buy-gift-key", { credentials: "same-origin" }),
+    ]);
+    if (friendsRes.ok) {
+      const friendsData = await friendsRes.json();
+      setFriends(friendsData);
+    }
+    if (keysRes.ok) {
+      const keysData = await keysRes.json();
+      setOwnedKeys(keysData.keys ?? []);
+    }
+  }, []);
 
+  useEffect(() => {
+    if (!loadExtrasLazy) return;
+    let cancelled = false;
+    void loadExtras().finally(() => {
+      if (!cancelled) setExtrasLoading(false);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [loadExtrasLazy, loadExtras]);
 
   const refreshAll = useCallback(async () => {
     try {
@@ -150,6 +171,8 @@ function DashboardInner({ initialMe, initialFriends, initialOwnedKeys }: Props) 
       await refreshAuth();
     } catch {
       /* ignore transient network errors */
+    } finally {
+      setExtrasLoading(false);
     }
   }, [refreshAuth]);
 
@@ -347,6 +370,8 @@ function DashboardInner({ initialMe, initialFriends, initialOwnedKeys }: Props) 
 
         <div role="tabpanel">
 
+          {extrasLoading ? <p className="muted">Загрузка ключей…</p> : null}
+
           <EconomyPanel
 
             coinsBalance={me.coinsBalance}
@@ -390,6 +415,8 @@ function DashboardInner({ initialMe, initialFriends, initialOwnedKeys }: Props) 
       {tab === "friends" ? (
 
         <div role="tabpanel">
+
+          {extrasLoading ? <p className="muted">Загрузка друзей…</p> : null}
 
           <FriendsPanel
 

@@ -1,33 +1,28 @@
 import { getDashboardUser } from "@/server/dashboard/profile";
-import { getFriendsBundle } from "@/server/friends/bundle";
-import { getOwnedGiftKeys } from "@/server/keys/inventory";
+import { loadDashboardUserRow } from "@/server/dashboard/load-user";
+import { EMPTY_FRIENDS } from "@/server/dashboard/empty";
 import { DashboardClient } from "@/components/dashboard-client";
 import { PageShell } from "@/components/page-shell";
 import { redirect } from "next/navigation";
 import { requireUser } from "@/lib/auth-guard";
 import { ensureTrialWindowStarted } from "@/server/trial-server";
-import { db } from "@/server/db";
 
 export default async function DashboardPage() {
   const sessionUser = await requireUser("/dashboard");
   await ensureTrialWindowStarted(sessionUser.id);
-  const me = await db.query.users.findFirst({
-    where: (u, { eq: eqFn }) => eqFn(u.id, sessionUser.id),
-  });
-  if (!me) redirect("/login?next=/dashboard");
 
-  const [initialMe, initialFriends, initialOwnedKeys] = await Promise.all([
-    getDashboardUser(me),
-    getFriendsBundle(me.id),
-    getOwnedGiftKeys(me.id),
-  ]);
+  const row = await loadDashboardUserRow(sessionUser.id);
+  if (!row) redirect("/login?next=/dashboard");
+
+  const initialMe = await getDashboardUser(row);
 
   return (
     <PageShell className="page-dashboard" decor="dashboard">
       <DashboardClient
         initialMe={initialMe}
-        initialFriends={initialFriends}
-        initialOwnedKeys={initialOwnedKeys}
+        initialFriends={EMPTY_FRIENDS}
+        initialOwnedKeys={[]}
+        loadExtrasLazy
       />
     </PageShell>
   );

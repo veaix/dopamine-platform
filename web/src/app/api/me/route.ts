@@ -3,18 +3,19 @@ import { db, schema } from "@/server/db";
 import { getCurrentUser } from "@/server/auth/session";
 import { json, err } from "@/lib/api";
 import { BIO_EDIT_COOLDOWN_MS, getDashboardUser } from "@/server/dashboard/profile";
+import { loadDashboardUserRow } from "@/server/dashboard/load-user";
 import { validateAvatarDataUrl } from "@/server/security/avatar";
 import { ensureTrialWindowStarted } from "@/server/trial-server";
 
 export async function GET() {
   const user = await getCurrentUser();
   if (!user) return err("Требуется вход", 401);
+
+  const row = await loadDashboardUserRow(user.id);
+  if (!row) return err("Требуется вход", 401);
+
   await ensureTrialWindowStarted(user.id);
-  const refreshed = await db.query.users.findFirst({
-    where: (u, { eq: eqFn }) => eqFn(u.id, user.id),
-  });
-  if (!refreshed) return err("Требуется вход", 401);
-  return json({ user: await getDashboardUser(refreshed) });
+  return json({ user: await getDashboardUser(row) });
 }
 
 export async function PATCH(request: Request) {
