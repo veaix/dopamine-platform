@@ -34,7 +34,7 @@ export async function POST(request: Request) {
 
     await ensureTrialWindowStarted(user.id);
 
-    const token = await signAccessToken({ sub: user.id, role: user.role });
+    const token = await signAccessToken({ sub: user.id, role: user.role, nickname: user.nickname });
     const cookieStore = await cookies();
     cookieStore.set(authCookieName, token, {
       httpOnly: true,
@@ -83,7 +83,7 @@ export async function POST(request: Request) {
 
   await ensureTrialWindowStarted(user.id);
 
-  const token = await signAccessToken({ sub: user.id, role: user.role });
+  const token = await signAccessToken({ sub: user.id, role: user.role, nickname: user.nickname });
   const cookieStore = await cookies();
   cookieStore.set(authCookieName, token, {
     httpOnly: true,

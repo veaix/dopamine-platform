@@ -46,7 +46,7 @@ export async function POST(request: Request) {
     }
   }
 
-  const token = await signAccessToken({ sub: user.id, role: user.role });
+  const token = await signAccessToken({ sub: user.id, role: user.role, nickname: user.nickname });
   const cookieStore = await cookies();
   cookieStore.set(authCookieName, token, {
     httpOnly: true,

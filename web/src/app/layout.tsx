@@ -6,6 +6,8 @@ import { SiteFooter } from "@/components/site-footer";
 import { AuthProvider } from "@/components/providers/auth-provider";
 import { AuthSessionLoader } from "@/components/auth-session-loader";
 import { baseMetadata } from "@/lib/seo";
+import { getCurrentUser } from "@/server/auth/session";
+import { toSessionUser } from "@/lib/session-user";
 
 const fontBody = Manrope({
   subsets: ["latin", "cyrillic"],
@@ -24,12 +26,15 @@ const fontDisplay = Unbounded({
 
 export const metadata: Metadata = baseMetadata();
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const dbUser = await getCurrentUser();
+  const initialUser = dbUser ? toSessionUser(dbUser) : null;
+
   return (
     <html lang="ru" className={`${fontBody.variable} ${fontDisplay.variable}`}>
       <body className="shell">
-        <AuthProvider initialUser={null}>
-          <AuthSessionLoader />
+        <AuthProvider initialUser={initialUser}>
+          <AuthSessionLoader deferRefresh={Boolean(initialUser)} />
           <SiteHeader />
           <div className="shell-main">{children}</div>
           <SiteFooter />

@@ -1,11 +1,7 @@
 import { db, schema } from "@/server/db";
 import { newId } from "@/server/utils/ids";
-import type { users } from "@/server/db/schema";
-
-type AdminUser = typeof users.$inferSelect;
-
 export async function logAdminAction(params: {
-  admin: AdminUser;
+  admin: { id: string; nickname: string };
   action: string;
   targetType?: string;
   targetId?: string;

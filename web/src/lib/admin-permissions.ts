@@ -43,13 +43,13 @@ const DEFAULT_ADMIN: AdminPermission[] = [
   "users",
 ];
 
-type UserRow = typeof users.$inferSelect;
+type PermissionUser = Pick<typeof users.$inferSelect, "role" | "adminPermissionsJson">;
 
-export function isCreator(user: UserRow) {
+export function isCreator(user: Pick<PermissionUser, "role">) {
   return user.role === "creator";
 }
 
-export function parsePermissions(user: UserRow): AdminPermission[] {
+export function parsePermissions(user: PermissionUser): AdminPermission[] {
   if (user.role === "creator") return [...ADMIN_PERMISSIONS];
   if (user.role !== "admin") return [];
   if (!user.adminPermissionsJson) return DEFAULT_ADMIN;
@@ -64,11 +64,11 @@ export function parsePermissions(user: UserRow): AdminPermission[] {
   }
 }
 
-export function hasPermission(user: UserRow, permission: AdminPermission) {
+export function hasPermission(user: PermissionUser, permission: AdminPermission) {
   return parsePermissions(user).includes(permission);
 }
 
-export function permissionsPayload(user: UserRow) {
+export function permissionsPayload(user: PermissionUser) {
   return {
     role: user.role,
     isCreator: isCreator(user),

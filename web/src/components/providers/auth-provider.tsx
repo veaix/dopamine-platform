@@ -13,6 +13,7 @@ export type { SessionUser };
 
 type AuthContextValue = {
   user: SessionUser | null;
+  /** True while client session fetch is in flight (only when SSR had no user). */
   loading: boolean;
   refresh: () => Promise<void>;
   logout: () => Promise<void>;
@@ -28,12 +29,18 @@ export function AuthProvider({
   initialUser: SessionUser | null;
 }) {
   const [user, setUser] = useState<SessionUser | null>(initialUser);
+  const [loading, setLoading] = useState(false);
 
   const refresh = useCallback(async () => {
-    const res = await fetch("/api/auth/session", { credentials: "include" });
-    const data = (await res.json()) as { user: SessionUser | null };
-    setUser(data.user ?? null);
-  }, []);
+    if (!user) setLoading(true);
+    try {
+      const res = await fetch("/api/auth/session", { credentials: "include" });
+      const data = (await res.json()) as { user: SessionUser | null };
+      setUser(data.user ?? null);
+    } finally {
+      setLoading(false);
+    }
+  }, [user]);
 
   const logout = useCallback(async () => {
     await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
@@ -42,8 +49,8 @@ export function AuthProvider({
   }, []);
 
   const value = useMemo(
-    () => ({ user, loading: false, refresh, logout }),
-    [user, refresh, logout],
+    () => ({ user, loading, refresh, logout }),
+    [user, loading, refresh, logout],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

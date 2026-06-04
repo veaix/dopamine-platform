@@ -1,6 +1,18 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/server/auth/session";
 import { getLeaderboards } from "@/server/leaderboards";
+
+function toLeaderboardViewer(user: NonNullable<Awaited<ReturnType<typeof getCurrentUser>>>) {
+  return {
+    id: user.id,
+    nickname: user.nickname,
+    avatarUrl: null as string | null,
+    playtimeSeconds: user.playtimeSeconds,
+    availableServerSlots: user.availableServerSlots,
+    coinsBalance: user.coinsBalance,
+    hiddenFromLeaderboards: Boolean(user.hiddenFromLeaderboards),
+  };
+}
 import { EMPTY_LEADERBOARDS } from "@/server/leaderboards/empty";
 
 export const dynamic = "force-dynamic";
@@ -24,7 +36,8 @@ function withTimeout<T>(promise: Promise<T>, ms: number, fallback: T): Promise<T
 
 export async function GET() {
   try {
-    const viewer = await getCurrentUser();
+    const user = await getCurrentUser();
+    const viewer = user ? toLeaderboardViewer(user) : null;
     const data = await withTimeout(getLeaderboards(viewer), 25_000, EMPTY_LEADERBOARDS);
     const cacheControl = viewer
       ? "private, no-store"

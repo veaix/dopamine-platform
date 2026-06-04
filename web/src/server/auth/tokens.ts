@@ -18,6 +18,7 @@ const ACCESS_TTL = "7d";
 type AccessPayload = {
   sub: string;
   role: string;
+  nickname: string;
 };
 
 export async function signAccessToken(payload: AccessPayload) {

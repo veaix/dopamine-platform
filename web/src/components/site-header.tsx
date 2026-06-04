@@ -9,7 +9,7 @@ import { DownloadButton } from "@/components/download-button";
 const PUBLIC_LINKS = [{ href: "/tops", label: "Топы" }] as const;
 
 export function SiteHeader() {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
 
   return (
     <header className="site-header">
@@ -25,7 +25,11 @@ export function SiteHeader() {
 
           <DownloadButton variant="primary" size="sm" label="Скачать" className="header-download" />
 
-          {user ? (
+          {loading ? (
+            <span className="nav-auth-pending muted" aria-busy="true">
+              …
+            </span>
+          ) : user ? (
             <UserMenu />
           ) : (
             <>
