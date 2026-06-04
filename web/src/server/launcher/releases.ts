@@ -1,6 +1,7 @@
 import { siteUrl } from "@/lib/site-url";
 
-const DEFAULT_REPO = "veaix/dopamine-releases";
+/** CI publishes tagged builds here; override with LAUNCHER_GITHUB_REPO if needed. */
+const DEFAULT_REPO = "veaix/dopamine-MinecraftLauncher";
 
 type GhAsset = {
   name: string;
