@@ -337,13 +337,14 @@ main.page,
   padding: 2rem 1.5rem 3.5rem;
 }
 
-/* Full-viewport landing-style backdrop (grid + orbs), per-page tint via --scene-* */
+/* Full-viewport landing-style backdrop — same cyan palette as home; scenes differ by layout only */
 .site-page-bg {
-  --scene-orb-1: rgba(34, 211, 238, 0.2);
-  --scene-orb-2: rgba(56, 189, 248, 0.11);
-  --scene-orb-3: rgba(34, 211, 238, 0.09);
-  --scene-grid-a: rgba(34, 211, 238, 0.042);
-  --scene-grid-b: rgba(34, 211, 238, 0.042);
+  --scene-orb-1: rgba(34, 211, 238, 0.22);
+  --scene-orb-2: rgba(56, 189, 248, 0.12);
+  --scene-orb-3: rgba(34, 211, 238, 0.1);
+  --scene-grid-line: rgba(34, 211, 238, 0.045);
+  --scene-grid-size: 48px;
+  --scene-blur: 60px;
   position: fixed;
   left: 0;
   right: 0;
@@ -356,18 +357,18 @@ main.page,
 
 .site-page-grid {
   position: absolute;
-  inset: 0;
+  inset: -10%;
   background-image:
-    linear-gradient(var(--scene-grid-a) 1px, transparent 1px),
-    linear-gradient(90deg, var(--scene-grid-b) 1px, transparent 1px);
-  background-size: 48px 48px;
+    linear-gradient(var(--scene-grid-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--scene-grid-line) 1px, transparent 1px);
+  background-size: var(--scene-grid-size) var(--scene-grid-size);
   mask-image: radial-gradient(ellipse 85% 70% at 50% 18%, black 20%, transparent 72%);
 }
 
 .site-page-orb {
   position: absolute;
   border-radius: 50%;
-  filter: blur(60px);
+  filter: blur(var(--scene-blur));
 }
 
 .site-page-orb--1 {
@@ -400,91 +401,215 @@ main.page,
   animation-delay: -4.5s;
 }
 
-.site-page-bg--default {
-  --scene-orb-1: rgba(34, 211, 238, 0.18);
-  --scene-orb-2: rgba(56, 189, 248, 0.1);
-  --scene-orb-3: rgba(34, 211, 238, 0.08);
+/* landing — эталон главной */
+.site-page-bg--landing .site-page-grid {
+  mask-image: radial-gradient(ellipse 70% 60% at 50% 30%, black, transparent);
 }
 
-.site-page-bg--landing {
-  --scene-orb-1: rgba(34, 211, 238, 0.22);
-  --scene-orb-2: rgba(56, 189, 248, 0.12);
-  --scene-orb-3: rgba(34, 211, 238, 0.1);
+/* default / прочие без decor */
+.site-page-bg--default .site-page-grid {
+  --scene-grid-size: 44px;
+  mask-image: radial-gradient(ellipse 80% 65% at 50% 12%, black 18%, transparent 68%);
 }
 
+.site-page-bg--default .site-page-orb--2 {
+  width: min(260px, 38vw);
+  height: min(260px, 38vw);
+}
+
+/* dashboard — сетка ниже, свет снизу */
 .site-page-bg--dashboard {
-  --scene-orb-1: rgba(34, 211, 238, 0.16);
-  --scene-orb-2: rgba(52, 211, 153, 0.11);
-  --scene-orb-3: rgba(56, 189, 248, 0.08);
+  --scene-grid-size: 40px;
+}
+
+.site-page-bg--dashboard .site-page-grid {
+  mask-image: radial-gradient(ellipse 95% 50% at 50% 88%, black 22%, transparent 75%);
+  transform: scale(1.05);
+}
+
+.site-page-bg--dashboard .site-page-orb--1 {
+  top: auto;
+  bottom: 22%;
+  left: auto;
+  right: 6%;
+  transform: none;
+  animation-name: landing-float-side;
 }
 
 .site-page-bg--dashboard .site-page-orb--2 {
-  top: 28%;
-  right: -10%;
+  top: 32%;
+  right: -12%;
+  width: min(340px, 48vw);
+  height: min(340px, 48vw);
 }
 
+.site-page-bg--dashboard .site-page-orb--3 {
+  bottom: 8%;
+  left: -12%;
+  opacity: 0.85;
+}
+
+/* admin — крупная сетка, акцент справа сверху */
 .site-page-bg--admin {
-  --scene-orb-1: rgba(192, 132, 252, 0.14);
-  --scene-orb-2: rgba(34, 211, 238, 0.12);
-  --scene-orb-3: rgba(251, 191, 36, 0.07);
-  --scene-grid-a: rgba(192, 132, 252, 0.035);
-  --scene-grid-b: rgba(34, 211, 238, 0.03);
+  --scene-grid-size: 52px;
+  --scene-blur: 72px;
+}
+
+.site-page-bg--admin .site-page-grid {
+  mask-image: radial-gradient(ellipse 60% 55% at 88% 8%, black 25%, transparent 72%);
 }
 
 .site-page-bg--admin .site-page-orb--1 {
-  left: 62%;
+  left: 72%;
+  top: -6%;
+  width: min(380px, 50vw);
+  height: min(380px, 50vw);
 }
 
+.site-page-bg--admin .site-page-orb--2 {
+  top: 42%;
+  right: 12%;
+  animation-duration: 13s;
+}
+
+.site-page-bg--admin .site-page-orb--3 {
+  display: none;
+}
+
+/* tops — широкая сетка по центру */
 .site-page-bg--tops {
-  --scene-orb-1: rgba(251, 191, 36, 0.12);
-  --scene-orb-2: rgba(34, 211, 238, 0.14);
-  --scene-orb-3: rgba(56, 189, 248, 0.09);
+  --scene-grid-size: 56px;
+}
+
+.site-page-bg--tops .site-page-grid {
+  mask-image: radial-gradient(ellipse 75% 80% at 50% 42%, black 15%, transparent 78%);
+}
+
+.site-page-bg--tops .site-page-orb--1 {
+  width: min(480px, 62vw);
+  height: min(480px, 62vw);
+  top: -14%;
 }
 
 .site-page-bg--tops .site-page-orb--3 {
-  bottom: 18%;
-  left: 8%;
+  bottom: 20%;
+  left: 12%;
+  width: min(200px, 30vw);
+  height: min(200px, 30vw);
 }
 
-.site-page-bg--profile {
-  --scene-orb-1: rgba(244, 114, 182, 0.1);
-  --scene-orb-2: rgba(34, 211, 238, 0.15);
-  --scene-orb-3: rgba(56, 189, 248, 0.08);
+/* profile — сетка смещена влево */
+.site-page-bg--profile .site-page-grid {
+  mask-image: radial-gradient(ellipse 70% 75% at 22% 35%, black 18%, transparent 70%);
+}
+
+.site-page-bg--profile .site-page-orb--1 {
+  left: 8%;
+  transform: none;
+  animation-name: landing-float-side;
 }
 
 .site-page-bg--profile .site-page-orb--2 {
-  top: 12%;
-  left: -8%;
+  top: 14%;
+  left: -10%;
   right: auto;
+  width: min(320px, 44vw);
+  height: min(320px, 44vw);
 }
 
-.site-page-bg--login {
-  --scene-orb-1: rgba(99, 102, 241, 0.14);
-  --scene-orb-2: rgba(34, 211, 238, 0.16);
-  --scene-orb-3: rgba(56, 189, 248, 0.07);
+.site-page-bg--profile .site-page-orb--3 {
+  bottom: 12%;
+  right: -6%;
+  left: auto;
 }
 
-.site-page-bg--register {
-  --scene-orb-1: rgba(34, 211, 238, 0.2);
-  --scene-orb-2: rgba(103, 232, 249, 0.13);
-  --scene-orb-3: rgba(52, 211, 153, 0.08);
+/* login — узкая вертикальная виньетка сетки */
+.site-page-bg--login .site-page-grid {
+  --scene-grid-size: 46px;
+  mask-image: radial-gradient(ellipse 45% 90% at 50% 50%, black 25%, transparent 72%);
 }
 
+.site-page-bg--login .site-page-orb--1 {
+  top: -12%;
+}
+
+.site-page-bg--login .site-page-orb--2 {
+  top: 8%;
+  right: 8%;
+}
+
+.site-page-bg--login .site-page-orb--3 {
+  bottom: 16%;
+  left: 10%;
+}
+
+/* register — сетка чуть повёрнута, орбы выше */
+.site-page-bg--register .site-page-grid {
+  transform: rotate(-2deg) scale(1.08);
+  mask-image: radial-gradient(ellipse 80% 70% at 50% 22%, black 20%, transparent 74%);
+}
+
+.site-page-bg--register .site-page-orb--2 {
+  top: 6%;
+  right: -14%;
+  width: min(360px, 50vw);
+  height: min(360px, 50vw);
+}
+
+.site-page-bg--register .site-page-orb--3 {
+  bottom: 28%;
+  left: 6%;
+}
+
+/* verify — компактнее, фокус по центру */
 .site-page-bg--verify {
-  --scene-orb-1: rgba(56, 189, 248, 0.16);
-  --scene-orb-2: rgba(34, 211, 238, 0.12);
-  --scene-orb-3: rgba(99, 102, 241, 0.08);
+  --scene-blur: 52px;
+  --scene-grid-size: 42px;
 }
 
-.site-page-bg--password {
-  --scene-orb-1: rgba(34, 211, 238, 0.12);
-  --scene-orb-2: rgba(148, 163, 184, 0.1);
-  --scene-orb-3: rgba(56, 189, 248, 0.09);
+.site-page-bg--verify .site-page-grid {
+  mask-image: radial-gradient(ellipse 55% 50% at 50% 48%, black 30%, transparent 68%);
+}
+
+.site-page-bg--verify .site-page-orb--1 {
+  width: min(300px, 42vw);
+  height: min(300px, 42vw);
+  top: 4%;
+}
+
+.site-page-bg--verify .site-page-orb--2 {
+  top: 38%;
+  right: 4%;
+}
+
+.site-page-bg--verify .site-page-orb--3 {
+  bottom: 22%;
+  left: 18%;
+}
+
+/* password — мягкий нижний свет */
+.site-page-bg--password .site-page-grid {
+  mask-image: radial-gradient(ellipse 90% 45% at 50% 100%, black 20%, transparent 70%);
 }
 
 .site-page-bg--password .site-page-orb--1 {
-  top: 8%;
-  left: 38%;
+  top: 6%;
+  left: 40%;
+  width: min(360px, 48vw);
+  height: min(360px, 48vw);
+}
+
+.site-page-bg--password .site-page-orb--2 {
+  display: none;
+}
+
+.site-page-bg--password .site-page-orb--3 {
+  bottom: -6%;
+  left: 50%;
+  margin-left: min(-200px, -29vw);
+  width: min(400px, 58vw);
+  height: min(280px, 40vw);
+  animation-name: landing-float-side;
 }
 
 .landing--home .site-page-bg {
