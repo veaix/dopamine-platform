@@ -76,7 +76,7 @@ export function adminUserDetailJson(row: AdminUserDetailRow) {
     ...adminUserListJson(row),
     bio: row.bio,
     totpEnabled: row.totpEnabled,
-    emailVerifiedAt: row.emailVerifiedAt?.toISOString() ?? null,
+    emailVerifiedAt: toIso(row.emailVerifiedAt),
     hiddenFromLeaderboards: row.hiddenFromLeaderboards,
     registrationIp: row.registrationIp,
   };

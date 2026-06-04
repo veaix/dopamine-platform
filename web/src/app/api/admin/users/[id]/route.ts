@@ -21,40 +21,51 @@ export async function GET(_request: Request, { params }: Params) {
   const { error } = await requireAdminApi("users");
   if (error) return error;
 
-  const { id } = await params;
-  const user = await loadAdminUserDetail(id);
-  if (!user) return err("Not found", 404);
+  try {
+    const { id } = await params;
+    const user = await loadAdminUserDetail(id);
+    if (!user) return err("Not found", 404);
 
-  const [reactions, devices, logins] = await Promise.all([
-    getProfileReactionCounts(user.id),
-    db.query.devices.findMany({
-      where: (d, { eq: eqFn }) => eqFn(d.userId, id),
-      columns: { id: true, label: true, lastSeenAt: true },
-    }),
-    db.query.loginEvents.findMany({
-      where: (l, { eq: eqFn }) => eqFn(l.userId, id),
-      columns: { ipAddress: true, createdAt: true },
-      limit: 20,
-    }),
-  ]);
+    const [reactions, devices, logins] = await Promise.all([
+      getProfileReactionCounts(user.id),
+      db.query.devices.findMany({
+        where: (d, { eq: eqFn }) => eqFn(d.userId, id),
+        columns: { id: true, label: true, lastSeenAt: true },
+      }),
+      db.query.loginEvents.findMany({
+        where: (l, { eq: eqFn }) => eqFn(l.userId, id),
+        columns: { ipAddress: true, createdAt: true },
+        limit: 20,
+      }),
+    ]);
 
-  const { likes, dislikes } = reactions;
+    const { likes, dislikes } = reactions;
 
-  return json({
-    user: adminUserDetailJson(user),
-    likes,
-    dislikes,
-    devices: devices.map((d) => ({
-      id: d.id,
-      label: d.label,
-      lastSeenAt: d.lastSeenAt?.toISOString() ?? null,
-    })),
-    permissions: parsePermissions(user),
-    loginEvents: logins.map((e) => ({
-      ipAddress: e.ipAddress,
-      createdAt: e.createdAt.toISOString(),
-    })),
-  });
+    return json({
+      user: adminUserDetailJson(user),
+      likes,
+      dislikes,
+      devices: devices.map((d) => ({
+        id: d.id,
+        label: d.label,
+        lastSeenAt:
+          d.lastSeenAt instanceof Date && !Number.isNaN(d.lastSeenAt.getTime())
+            ? d.lastSeenAt.toISOString()
+            : null,
+      })),
+      permissions: parsePermissions(user),
+      loginEvents: logins.map((e) => ({
+        ipAddress: e.ipAddress,
+        createdAt:
+          e.createdAt instanceof Date && !Number.isNaN(e.createdAt.getTime())
+            ? e.createdAt.toISOString()
+            : new Date(0).toISOString(),
+      })),
+    });
+  } catch (e) {
+    console.error("[admin/users/:id] GET failed:", e);
+    return err("Не удалось загрузить профиль пользователя", 500);
+  }
 }
 
 export async function PATCH(request: Request, { params }: Params) {

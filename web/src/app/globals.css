@@ -1525,6 +1525,11 @@ select:focus {
   overflow-y: auto;
 }
 
+.admin-detail-panel {
+  min-height: 12rem;
+  scroll-margin-top: 5rem;
+}
+
 .keys-list li {
   flex-wrap: wrap;
   gap: 0.5rem;

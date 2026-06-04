@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { AdminShellProps } from "@/server/admin/shell";
 
 const AdminDashboardPanel = dynamic(
@@ -163,6 +163,9 @@ function AdminUsersPanel({
   const [users, setUsers] = useState<UserRow[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [detail, setDetail] = useState<UserDetail | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [detailError, setDetailError] = useState("");
+  const detailPanelRef = useRef<HTMLElement | null>(null);
   const [form, setForm] = useState<Record<string, string | number | boolean>>({});
   const [grantAmount, setGrantAmount] = useState(10);
   const [grantComment, setGrantComment] = useState("");
@@ -185,12 +188,24 @@ function AdminUsersPanel({
 
   function loadDetail(id: string) {
     setSelectedId(id);
+    setDetailLoading(true);
+    setDetailError("");
     onError("");
-    void fetch(`/api/admin/users/${id}`)
-      .then((r) => r.json())
-      .then((d) => {
-        if (d.error) {
-          onError(d.error);
+    void fetch(`/api/admin/users/${encodeURIComponent(id)}`, { credentials: "same-origin" })
+      .then(async (r) => {
+        const d = await r.json().catch(() => ({}));
+        if (!r.ok || d.error) {
+          const message = d.error ?? "Не удалось загрузить профиль";
+          setDetailError(message);
+          onError(message);
+          setDetail(null);
+          return;
+        }
+        if (!d.user?.id) {
+          const message = "Пустой ответ сервера";
+          setDetailError(message);
+          onError(message);
+          setDetail(null);
           return;
         }
         setDetail({
@@ -219,8 +234,20 @@ function AdminUsersPanel({
           hiddenFromLeaderboards: u.hiddenFromLeaderboards ?? false,
           newPassword: "",
         });
-      });
+      })
+      .catch(() => {
+        const message = "Сеть недоступна";
+        setDetailError(message);
+        onError(message);
+        setDetail(null);
+      })
+      .finally(() => setDetailLoading(false));
   }
+
+  useEffect(() => {
+    if (!selectedId || detailLoading || !detail?.user) return;
+    detailPanelRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }, [selectedId, detailLoading, detail?.user?.id]);
 
   function saveUser() {
     if (!selectedId) return;
@@ -327,8 +354,12 @@ function AdminUsersPanel({
         </ul>
       </section>
 
-      {detail?.user ? (
-        <section className="card stack admin-edit-form">
+      {selectedId && detailLoading ? (
+        <section ref={detailPanelRef} className="card admin-detail-panel">
+          <p className="muted">Загрузка профиля…</p>
+        </section>
+      ) : detail?.user && detail.user.id === selectedId ? (
+        <section ref={detailPanelRef} className="card stack admin-edit-form admin-detail-panel">
           <h2>Редактирование: {detail.user.nickname}</h2>
           <div className="admin-form-grid">
             <label>
@@ -631,8 +662,12 @@ function AdminUsersPanel({
           </div>
         </section>
       ) : (
-        <section className="card">
-          <p className="muted">Выберите пользователя слева</p>
+        <section ref={detailPanelRef} className="card admin-detail-panel">
+          {selectedId && detailError ? (
+            <p className="error">{detailError}</p>
+          ) : (
+            <p className="muted">Выберите пользователя в списке</p>
+          )}
         </section>
       )}
     </div>
