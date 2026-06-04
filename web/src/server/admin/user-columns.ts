@@ -49,6 +49,11 @@ const detailExtra = {
   adminPermissionsJson: schema.users.adminPermissionsJson,
 } as const;
 
+function toIso(d: Date | null | undefined): string | null {
+  if (!d || !(d instanceof Date) || Number.isNaN(d.getTime())) return null;
+  return d.toISOString();
+}
+
 export function adminUserListJson(row: AdminUserListRow) {
   return {
     id: row.id,
@@ -58,11 +63,11 @@ export function adminUserListJson(row: AdminUserListRow) {
     coinsBalance: row.coinsBalance,
     availableServerSlots: row.availableServerSlots,
     playtimeSeconds: row.playtimeSeconds,
-    totalServersCreated: row.totalServersCreated,
+    totalServersCreated: row.totalServersCreated ?? 0,
     isBlocked: row.isBlocked,
-    lastLoginAt: row.lastLoginAt?.toISOString() ?? null,
+    lastLoginAt: toIso(row.lastLoginAt),
     lastLoginIp: row.lastLoginIp,
-    createdAt: row.createdAt.toISOString(),
+    createdAt: toIso(row.createdAt) ?? new Date(0).toISOString(),
   };
 }
 
@@ -97,8 +102,8 @@ export async function searchAdminUsers(q: string, limit = 100): Promise<AdminUse
   return db
     .select(listSelect)
     .from(schema.users)
-    .orderBy(desc(schema.users.lastLoginAt), desc(schema.users.createdAt))
-    .limit(Math.min(cap, 30));
+    .orderBy(desc(schema.users.createdAt))
+    .limit(cap);
 }
 
 export async function loadAdminUserDetail(id: string): Promise<AdminUserDetailRow | undefined> {

@@ -63,6 +63,7 @@ try {
       AND COALESCE(email_verified_at, created_at) IS NOT NULL
       AND trial_window_started_at > COALESCE(email_verified_at, created_at) + 300000
   `);
+  await addColumn("users", "total_servers_created", "INTEGER NOT NULL DEFAULT 0");
   await addColumn("users", "hidden_from_leaderboards", "INTEGER NOT NULL DEFAULT 0");
   await addColumn("users", "admin_permissions_json", "TEXT");
   await addColumn("users", "bio_edited_at", "INTEGER");

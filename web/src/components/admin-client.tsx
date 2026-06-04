@@ -175,7 +175,8 @@ function AdminUsersPanel({
       .then((d) => {
         if (d.error) onError(d.error);
         else setUsers(d.users ?? []);
-      });
+      })
+      .catch(() => onError("Не удалось загрузить пользователей"));
   };
 
   useEffect(() => {
@@ -307,11 +308,7 @@ function AdminUsersPanel({
           </button>
         </div>
         <p className="muted">
-          {q.trim()
-            ? `Найдено: ${users.length}`
-            : users.length
-              ? `Последние активные (${users.length}) — введите запрос для точного поиска`
-              : "Введите ник, email или IP и нажмите «Найти»"}
+          {q.trim() ? `Найдено: ${users.length}` : `Показано: ${users.length} (последние по регистрации, макс. 100)`}
         </p>
         <ul className="list admin-user-list">
           {users.map((u) => (
