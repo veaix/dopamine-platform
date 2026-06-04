@@ -1,11 +1,30 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import type { LeaderboardsData } from "@/server/leaderboards";
+import type { FastLeaderboards, LeaderboardsData, SlowLeaderboards } from "@/server/leaderboards";
 import { mergeMeRanks } from "@/lib/leaderboards-merge";
+import {
+  LEADERBOARD_FAST_POLL_MS,
+  LEADERBOARD_SLOW_POLL_MS,
+} from "@/lib/leaderboards-poll";
 
 type TopCategory = LeaderboardsData["byHours"];
+
+type MeFastPayload = {
+  nickname: string;
+  me: {
+    byLikes: TopCategory["me"];
+    byDislikes: TopCategory["me"];
+    byAvailableServerSlots: TopCategory["me"];
+    byCoins: TopCategory["me"];
+  } | null;
+};
+
+type MeSlowPayload = {
+  nickname: string;
+  me: { byHours: TopCategory["me"] } | null;
+};
 
 export function TopsClient({
   initialData,
@@ -17,6 +36,124 @@ export function TopsClient({
   const [data, setData] = useState(initialData);
   const [meLoading, setMeLoading] = useState(loadMeRanks);
 
+  const applyFast = useCallback((fast: FastLeaderboards) => {
+    setData((prev) => ({
+      ...prev,
+      ...fast,
+    }));
+  }, []);
+
+  const applySlow = useCallback((slow: SlowLeaderboards) => {
+    setData((prev) => ({
+      ...prev,
+      ...slow,
+    }));
+  }, []);
+
+  const applyMeFast = useCallback((payload: MeFastPayload) => {
+    if (!payload.me) return;
+    setData((prev) =>
+      mergeMeRanks(
+        prev,
+        {
+          byHours: null,
+          byLikes: payload.me!.byLikes,
+          byDislikes: payload.me!.byDislikes,
+          byAvailableServerSlots: payload.me!.byAvailableServerSlots,
+          byCoins: payload.me!.byCoins,
+        },
+        payload.nickname,
+      ),
+    );
+  }, []);
+
+  const applyMeSlow = useCallback((payload: MeSlowPayload) => {
+    if (!payload.me?.byHours) return;
+    setData((prev) =>
+      mergeMeRanks(
+        prev,
+        {
+          byHours: payload.me!.byHours,
+          byLikes: null,
+          byDislikes: null,
+          byAvailableServerSlots: null,
+          byCoins: null,
+        },
+        payload.nickname,
+      ),
+    );
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function pollFast() {
+      if (cancelled || document.visibilityState === "hidden") return;
+      try {
+        const [fastRes, meRes] = await Promise.all([
+          fetch("/api/leaderboards/fast", { credentials: "same-origin" }),
+          loadMeRanks
+            ? fetch("/api/leaderboards/me/fast", { credentials: "same-origin" })
+            : Promise.resolve(null),
+        ]);
+        if (fastRes.ok) {
+          const fast = (await fastRes.json()) as FastLeaderboards;
+          if (!cancelled) applyFast(fast);
+        }
+        if (meRes?.ok) {
+          const meJson = (await meRes.json()) as MeFastPayload;
+          if (!cancelled) {
+            applyMeFast(meJson);
+            setMeLoading(false);
+          }
+        }
+      } catch {
+        /* ignore */
+      }
+    }
+
+    void pollFast();
+    const fastTimer = window.setInterval(() => void pollFast(), LEADERBOARD_FAST_POLL_MS);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(fastTimer);
+    };
+  }, [loadMeRanks, applyFast, applyMeFast]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function pollSlow() {
+      if (cancelled || document.visibilityState === "hidden") return;
+      try {
+        const [slowRes, meRes] = await Promise.all([
+          fetch("/api/leaderboards/slow", { credentials: "same-origin" }),
+          loadMeRanks
+            ? fetch("/api/leaderboards/me/slow", { credentials: "same-origin" })
+            : Promise.resolve(null),
+        ]);
+        if (slowRes.ok) {
+          const slow = (await slowRes.json()) as SlowLeaderboards;
+          if (!cancelled) applySlow(slow);
+        }
+        if (meRes?.ok) {
+          const meJson = (await meRes.json()) as MeSlowPayload;
+          if (!cancelled) applyMeSlow(meJson);
+        }
+      } catch {
+        /* ignore */
+      }
+    }
+
+    const slowTimer = window.setInterval(() => void pollSlow(), LEADERBOARD_SLOW_POLL_MS);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(slowTimer);
+    };
+  }, [loadMeRanks, applySlow, applyMeSlow]);
+
   useEffect(() => {
     if (!loadMeRanks) return;
 
@@ -24,24 +161,14 @@ export function TopsClient({
     const ctrl = new AbortController();
     const timer = window.setTimeout(() => ctrl.abort(), 10_000);
 
-    void fetch("/api/leaderboards/me", { credentials: "same-origin", signal: ctrl.signal })
-      .then(async (res) => {
-        if (!res.ok) return null;
-        return res.json() as Promise<{
-          nickname: string;
-          me: {
-            byHours: LeaderboardsData["byHours"]["me"];
-            byLikes: LeaderboardsData["byLikes"]["me"];
-            byDislikes: LeaderboardsData["byDislikes"]["me"];
-            byAvailableServerSlots: LeaderboardsData["byAvailableServerSlots"]["me"];
-            byCoins: LeaderboardsData["byCoins"]["me"];
-          } | null;
-        }>;
-      })
-      .then((json) => {
-        if (cancelled || !json?.me) return;
-        const ranks = json.me;
-        setData((prev) => mergeMeRanks(prev, ranks, json.nickname));
+    void Promise.all([
+      fetch("/api/leaderboards/me/fast", { credentials: "same-origin", signal: ctrl.signal }),
+      fetch("/api/leaderboards/me/slow", { credentials: "same-origin", signal: ctrl.signal }),
+    ])
+      .then(async ([fastRes, slowRes]) => {
+        if (cancelled) return;
+        if (fastRes.ok) applyMeFast((await fastRes.json()) as MeFastPayload);
+        if (slowRes.ok) applyMeSlow((await slowRes.json()) as MeSlowPayload);
       })
       .finally(() => {
         if (!cancelled) setMeLoading(false);
@@ -53,7 +180,7 @@ export function TopsClient({
       ctrl.abort();
       window.clearTimeout(timer);
     };
-  }, [loadMeRanks]);
+  }, [loadMeRanks, applyMeFast, applyMeSlow]);
 
   return (
     <>

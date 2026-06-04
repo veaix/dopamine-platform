@@ -2,10 +2,16 @@ import { unstable_cache } from "next/cache";
 import { and, desc, eq, gt, sql } from "drizzle-orm";
 import { db, schema } from "@/server/db";
 import { getProfileReactionCounts } from "@/lib/profile-stats";
+import { mergeMeRanks, type ViewerMeRanks } from "@/lib/leaderboards-merge";
+import {
+  LEADERBOARD_FAST_REVALIDATE_SEC,
+  LEADERBOARD_SLOW_REVALIDATE_SEC,
+} from "@/server/leaderboards/ttl";
+
+export type { ViewerMeRanks } from "@/lib/leaderboards-merge";
+export { mergeMeRanks } from "@/lib/leaderboards-merge";
 
 const TOP_LIMIT = 10;
-const CACHE_SECONDS = 120;
-const REACTION_CACHE_SECONDS = 300;
 const REACTION_QUERY_MS = 8_000;
 const visible = eq(schema.users.hiddenFromLeaderboards, false);
 
@@ -46,6 +52,12 @@ export type LeaderboardsData = {
   byAvailableServerSlots: TopCategory;
   byCoins: TopCategory;
 };
+
+export type SlowLeaderboards = Pick<LeaderboardsData, "byHours">;
+export type FastLeaderboards = Pick<
+  LeaderboardsData,
+  "byLikes" | "byDislikes" | "byAvailableServerSlots" | "byCoins"
+>;
 
 function inTop(top: TopRow[], nickname: string) {
   return top.some((r) => r.nickname === nickname);
@@ -164,18 +176,26 @@ function topByReaction(reaction: "like" | "dislike") {
     .orderBy(desc(topCounts.value));
 }
 
-const getCachedCoreTopLists = unstable_cache(
+const getCachedSlowTopRows = unstable_cache(
   async () => {
-    const [byHours, byServerSlots, byCoins] = await Promise.all([
-      db
-        .select({
-          nickname: schema.users.nickname,
-          value: schema.users.playtimeSeconds,
-        })
-        .from(schema.users)
-        .where(visible)
-        .orderBy(desc(schema.users.playtimeSeconds))
-        .limit(TOP_LIMIT),
+    const byHours = await db
+      .select({
+        nickname: schema.users.nickname,
+        value: schema.users.playtimeSeconds,
+      })
+      .from(schema.users)
+      .where(visible)
+      .orderBy(desc(schema.users.playtimeSeconds))
+      .limit(TOP_LIMIT);
+    return { byHours };
+  },
+  ["leaderboards-slow-rows"],
+  { revalidate: LEADERBOARD_SLOW_REVALIDATE_SEC },
+);
+
+const getCachedFastTopRows = unstable_cache(
+  async () => {
+    const [byServerSlots, byCoins, likesRaw, dislikesRaw] = await Promise.all([
       db
         .select({
           nickname: schema.users.nickname,
@@ -194,48 +214,75 @@ const getCachedCoreTopLists = unstable_cache(
         .where(visible)
         .orderBy(desc(schema.users.coinsBalance))
         .limit(TOP_LIMIT),
+      withTimeout(topByReaction("like"), REACTION_QUERY_MS, []),
+      withTimeout(topByReaction("dislike"), REACTION_QUERY_MS, []),
     ]);
-
-    return { byHours, byServerSlots, byCoins };
+    return { byServerSlots, byCoins, likesRaw, dislikesRaw };
   },
-  ["leaderboards-core-tops"],
-  { revalidate: CACHE_SECONDS },
+  ["leaderboards-fast-rows"],
+  { revalidate: LEADERBOARD_FAST_REVALIDATE_SEC },
 );
 
-const getCachedReactionTopLists = unstable_cache(
-  async () => {
-    const [likesRaw, dislikesRaw] = await Promise.all([topByReaction("like"), topByReaction("dislike")]);
-    return { likesRaw, dislikesRaw };
-  },
-  ["leaderboards-reaction-tops"],
-  { revalidate: REACTION_CACHE_SECONDS },
-);
-
-async function getTopLists() {
-  const [core, reactions] = await Promise.all([
-    getCachedCoreTopLists(),
-    withTimeout(getCachedReactionTopLists(), REACTION_QUERY_MS, {
-      likesRaw: [] as Awaited<ReturnType<typeof topByReaction>>,
-      dislikesRaw: [] as Awaited<ReturnType<typeof topByReaction>>,
-    }),
-  ]);
-  return { ...core, ...reactions };
+export async function getSlowLeaderboards(): Promise<SlowLeaderboards> {
+  const { byHours } = await getCachedSlowTopRows();
+  return { byHours: buildCategory(mapRows(byHours), null, null) };
 }
 
-const getCachedPublicLeaderboards = unstable_cache(
-  async () => buildLeaderboards(null, await getTopLists()),
-  ["leaderboards-public"],
-  { revalidate: CACHE_SECONDS },
-);
+export async function getFastLeaderboards(): Promise<FastLeaderboards> {
+  const { byServerSlots, byCoins, likesRaw, dislikesRaw } = await getCachedFastTopRows();
+  return {
+    byLikes: buildCategory(mapRows(likesRaw), null, null),
+    byDislikes: buildCategory(mapRows(dislikesRaw), null, null),
+    byAvailableServerSlots: buildCategory(mapRows(byServerSlots), null, null),
+    byCoins: buildCategory(mapRows(byCoins), null, null),
+  };
+}
 
 export async function getPublicLeaderboards(): Promise<LeaderboardsData> {
-  return getCachedPublicLeaderboards();
+  const [slow, fast] = await Promise.all([getSlowLeaderboards(), getFastLeaderboards()]);
+  return { ...slow, ...fast };
 }
 
-import { mergeMeRanks, type ViewerMeRanks } from "@/lib/leaderboards-merge";
+export async function getViewerMeRanksSlow(
+  viewer: {
+    nickname: string;
+    avatarUrl: string | null;
+    playtimeSeconds: number;
+    hiddenFromLeaderboards: boolean;
+  },
+): Promise<Pick<ViewerMeRanks, "byHours"> | null> {
+  if (viewer.hiddenFromLeaderboards) return null;
+  const meHours = await rankByPlaytime(viewer);
+  return { byHours: meHours };
+}
 
-export type { ViewerMeRanks } from "@/lib/leaderboards-merge";
-export { mergeMeRanks } from "@/lib/leaderboards-merge";
+export async function getViewerMeRanksFast(
+  viewer: {
+    id: string;
+    nickname: string;
+    avatarUrl: string | null;
+    availableServerSlots: number;
+    coinsBalance: number;
+    hiddenFromLeaderboards: boolean;
+  },
+): Promise<Omit<ViewerMeRanks, "byHours"> | null> {
+  if (viewer.hiddenFromLeaderboards) return null;
+
+  const { likes, dislikes } = await getProfileReactionCounts(viewer.id);
+  const [meSlots, meCoins, meLikes, meDislikes] = await Promise.all([
+    rankByServerSlots(viewer),
+    rankByCoins(viewer),
+    withTimeout(rankByReaction(viewer, "like", likes), 5_000, null),
+    withTimeout(rankByReaction(viewer, "dislike", dislikes), 5_000, null),
+  ]);
+
+  return {
+    byLikes: meLikes,
+    byDislikes: meDislikes,
+    byAvailableServerSlots: meSlots,
+    byCoins: meCoins,
+  };
+}
 
 export async function getViewerMeRanks(
   viewer: {
@@ -248,69 +295,21 @@ export async function getViewerMeRanks(
     hiddenFromLeaderboards: boolean;
   },
 ): Promise<ViewerMeRanks | null> {
-  if (viewer.hiddenFromLeaderboards) return null;
-
-  const { likes, dislikes } = await getProfileReactionCounts(viewer.id);
-  const [meHours, meSlots, meCoins, meLikes, meDislikes] = await Promise.all([
-    rankByPlaytime(viewer),
-    rankByServerSlots(viewer),
-    rankByCoins(viewer),
-    withTimeout(rankByReaction(viewer, "like", likes), 5_000, null),
-    withTimeout(rankByReaction(viewer, "dislike", dislikes), 5_000, null),
+  const [slow, fast] = await Promise.all([
+    getViewerMeRanksSlow(viewer),
+    getViewerMeRanksFast(viewer),
   ]);
-
+  if (!slow && !fast) return null;
   return {
-    byHours: meHours,
-    byLikes: meLikes,
-    byDislikes: meDislikes,
-    byAvailableServerSlots: meSlots,
-    byCoins: meCoins,
+    byHours: slow?.byHours ?? null,
+    byLikes: fast?.byLikes ?? null,
+    byDislikes: fast?.byDislikes ?? null,
+    byAvailableServerSlots: fast?.byAvailableServerSlots ?? null,
+    byCoins: fast?.byCoins ?? null,
   };
 }
 
-async function buildLeaderboards(
-  viewer: {
-    id: string;
-    nickname: string;
-    avatarUrl: string | null;
-    playtimeSeconds: number;
-    availableServerSlots: number;
-    coinsBalance: number;
-    hiddenFromLeaderboards: boolean;
-  } | null,
-  lists: Awaited<ReturnType<typeof getTopLists>>,
-): Promise<LeaderboardsData> {
-  const { byHours, likesRaw, dislikesRaw, byServerSlots, byCoins } = lists;
-
-  let meHours: MeRank | null = null;
-  let meLikes: MeRank | null = null;
-  let meDislikes: MeRank | null = null;
-  let meSlots: MeRank | null = null;
-  let meCoins: MeRank | null = null;
-
-  if (viewer && !viewer.hiddenFromLeaderboards) {
-    const { likes, dislikes } = await getProfileReactionCounts(viewer.id);
-    [meHours, meSlots, meCoins, meLikes, meDislikes] = await Promise.all([
-      rankByPlaytime(viewer),
-      rankByServerSlots(viewer),
-      rankByCoins(viewer),
-      withTimeout(rankByReaction(viewer, "like", likes), 5_000, null),
-      withTimeout(rankByReaction(viewer, "dislike", dislikes), 5_000, null),
-    ]);
-  }
-
-  const nick = viewer?.nickname ?? null;
-
-  return {
-    byHours: buildCategory(mapRows(byHours), meHours, nick),
-    byLikes: buildCategory(mapRows(likesRaw), meLikes, nick),
-    byDislikes: buildCategory(mapRows(dislikesRaw), meDislikes, nick),
-    byAvailableServerSlots: buildCategory(mapRows(byServerSlots), meSlots, nick),
-    byCoins: buildCategory(mapRows(byCoins), meCoins, nick),
-  };
-}
-
-/** Full leaderboards including "your rank" — slower; prefer getPublicLeaderboards + getViewerMeRanks. */
+/** Full leaderboards including "your rank" — prefer split fast/slow + polling. */
 export async function getLeaderboards(viewer: {
   id: string;
   nickname: string;
