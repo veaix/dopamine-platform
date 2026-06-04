@@ -5,6 +5,7 @@ type SiteLogoProps = {
   href?: string;
   link?: boolean;
   size?: "sm" | "md" | "lg" | "hero";
+  showImage?: boolean;
   showText?: boolean;
   className?: string;
 };
@@ -16,18 +17,28 @@ const SIZES = {
   hero: { w: 160, h: 160, text: "1.35rem" },
 } as const;
 
-export function SiteLogo({ href = "/", link = true, size = "md", showText = true, className = "" }: SiteLogoProps) {
+export function SiteLogo({
+  href = "/",
+  link = true,
+  size = "md",
+  showImage = true,
+  showText = true,
+  className = "",
+}: SiteLogoProps) {
   const dim = SIZES[size];
   const inner = (
     <>
-      <Image
-        src="/brand-logo.png"
-        alt="dopamine launcher"
-        width={dim.w}
-        height={dim.h}
-        className="site-logo-img"
-        priority={size === "hero"}
-      />
+      {showImage ? (
+        <Image
+          src="/brand-logo.png"
+          alt=""
+          width={dim.w}
+          height={dim.h}
+          className="site-logo-img"
+          priority={size === "hero"}
+          aria-hidden
+        />
+      ) : null}
       {showText ? <span className="site-logo-text">dopamine</span> : null}
     </>
   );

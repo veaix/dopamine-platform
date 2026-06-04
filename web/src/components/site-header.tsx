@@ -14,7 +14,7 @@ export function SiteHeader() {
   return (
     <header className="site-header">
       <div className="site-header-inner">
-        <SiteLogo size="sm" />
+        <SiteLogo size="sm" showImage={false} />
 
         <nav className="site-nav" aria-label="Основное меню">
           {PUBLIC_LINKS.map((l) => (
