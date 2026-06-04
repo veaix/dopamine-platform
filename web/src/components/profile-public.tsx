@@ -11,7 +11,27 @@ import type { PublicProfile } from "@/server/profile/public";
 import { BrokenHeartIcon, HeartIcon } from "@/components/reaction-icons";
 import { getPublicRoleBadge } from "@/lib/role-labels";
 
+function applyReactionToggle(
+  prev: PublicProfile,
+  reaction: "like" | "dislike",
+): PublicProfile {
+  const was = prev.myReaction;
+  let likes = prev.likes;
+  let dislikes = prev.dislikes;
 
+  if (was === reaction) {
+    if (reaction === "like") likes = Math.max(0, likes - 1);
+    else dislikes = Math.max(0, dislikes - 1);
+    return { ...prev, likes, dislikes, myReaction: null };
+  }
+
+  if (was === "like") likes = Math.max(0, likes - 1);
+  if (was === "dislike") dislikes = Math.max(0, dislikes - 1);
+  if (reaction === "like") likes += 1;
+  else dislikes += 1;
+
+  return { ...prev, likes, dislikes, myReaction: reaction };
+}
 
 export function ProfilePublic({
   initialProfile,
@@ -22,6 +42,7 @@ export function ProfilePublic({
 }) {
   const [p, setP] = useState(initialProfile);
   const [viewersLoading, setViewersLoading] = useState(loadViewersLazy);
+  const [reacting, setReacting] = useState(false);
   const [err, setErr] = useState("");
 
   useEffect(() => {
@@ -154,6 +175,7 @@ export function ProfilePublic({
           <button
             type="button"
             className={`profile-reaction-btn profile-reaction-btn--like${p.myReaction === "like" ? " active" : ""}`}
+            disabled={reacting}
             onClick={() => void react("like")}
             aria-pressed={p.myReaction === "like"}
             aria-label={p.myReaction === "like" ? "Убрать лайк" : "Лайк"}
@@ -165,6 +187,7 @@ export function ProfilePublic({
           <button
             type="button"
             className={`profile-reaction-btn profile-reaction-btn--dislike${p.myReaction === "dislike" ? " active" : ""}`}
+            disabled={reacting}
             onClick={() => void react("dislike")}
             aria-pressed={p.myReaction === "dislike"}
             aria-label={p.myReaction === "dislike" ? "Убрать дизлайк" : "Дизлайк"}
@@ -348,19 +371,46 @@ export function ProfilePublic({
 
 
   async function react(reaction: "like" | "dislike") {
+    if (reacting) return;
+    setErr("");
+    const snapshot = p;
+    setP((prev) => applyReactionToggle(prev, reaction));
+    setReacting(true);
 
-    await fetch(`/api/profiles/${encodeURIComponent(p.nickname)}/reaction`, {
+    try {
+      const res = await fetch(`/api/profiles/${encodeURIComponent(p.nickname)}/reaction`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
+        body: JSON.stringify({ reaction }),
+      });
+      const data = (await res.json()) as {
+        error?: string;
+        likes?: number;
+        dislikes?: number;
+        myReaction?: "like" | "dislike" | null;
+      };
 
-      method: "POST",
+      if (!res.ok) {
+        setP(snapshot);
+        setErr(data.error ?? "Не удалось обновить реакцию");
+        return;
+      }
 
-      headers: { "Content-Type": "application/json" },
-
-      body: JSON.stringify({ reaction }),
-
-    });
-
-    load();
-
+      if (typeof data.likes === "number" && typeof data.dislikes === "number") {
+        setP((prev) => ({
+          ...prev,
+          likes: data.likes!,
+          dislikes: data.dislikes!,
+          myReaction: data.myReaction ?? null,
+        }));
+      }
+    } catch {
+      setP(snapshot);
+      setErr("Сеть недоступна");
+    } finally {
+      setReacting(false);
+    }
   }
 
 }
