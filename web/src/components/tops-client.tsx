@@ -3,34 +3,48 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import type { LeaderboardsData } from "@/server/leaderboards";
-import { EMPTY_LEADERBOARDS } from "@/server/leaderboards/empty";
+import { mergeMeRanks } from "@/lib/leaderboards-merge";
 
 type TopCategory = LeaderboardsData["byHours"];
 
-export function TopsClient() {
-  const [data, setData] = useState<LeaderboardsData | null>(null);
-  const [error, setError] = useState<string | null>(null);
+export function TopsClient({
+  initialData,
+  loadMeRanks = false,
+}: {
+  initialData: LeaderboardsData;
+  loadMeRanks?: boolean;
+}) {
+  const [data, setData] = useState(initialData);
+  const [meLoading, setMeLoading] = useState(loadMeRanks);
 
   useEffect(() => {
+    if (!loadMeRanks) return;
+
     let cancelled = false;
     const ctrl = new AbortController();
-    const timer = window.setTimeout(() => ctrl.abort(), 25_000);
+    const timer = window.setTimeout(() => ctrl.abort(), 10_000);
 
-    void fetch("/api/leaderboards", { credentials: "same-origin", signal: ctrl.signal })
+    void fetch("/api/leaderboards/me", { credentials: "same-origin", signal: ctrl.signal })
       .then(async (res) => {
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        return res.json() as Promise<LeaderboardsData>;
+        if (!res.ok) return null;
+        return res.json() as Promise<{
+          nickname: string;
+          me: {
+            byHours: LeaderboardsData["byHours"]["me"];
+            byLikes: LeaderboardsData["byLikes"]["me"];
+            byDislikes: LeaderboardsData["byDislikes"]["me"];
+            byAvailableServerSlots: LeaderboardsData["byAvailableServerSlots"]["me"];
+            byCoins: LeaderboardsData["byCoins"]["me"];
+          } | null;
+        }>;
       })
       .then((json) => {
-        if (!cancelled) setData(json);
-      })
-      .catch((e: unknown) => {
-        if (!cancelled) {
-          setError(e instanceof Error && e.name === "AbortError" ? "timeout" : "load_failed");
-          setData(EMPTY_LEADERBOARDS);
-        }
+        if (cancelled || !json?.me) return;
+        const ranks = json.me;
+        setData((prev) => mergeMeRanks(prev, ranks, json.nickname));
       })
       .finally(() => {
+        if (!cancelled) setMeLoading(false);
         window.clearTimeout(timer);
       });
 
@@ -39,21 +53,13 @@ export function TopsClient() {
       ctrl.abort();
       window.clearTimeout(timer);
     };
-  }, []);
-
-  if (!data) {
-    return (
-      <div className="card" style={{ padding: "2rem", textAlign: "center" }}>
-        <p className="muted">Загрузка топов…</p>
-      </div>
-    );
-  }
+  }, [loadMeRanks]);
 
   return (
     <>
-      {error ? (
+      {meLoading ? (
         <p className="muted" style={{ marginBottom: "1rem" }}>
-          Не удалось загрузить актуальные данные. Показан пустой список — попробуйте обновить страницу.
+          Загружаем ваши места в рейтинге…
         </p>
       ) : null}
       <div className="grid tops">
@@ -92,12 +98,7 @@ function TopList({
           top.map((r, i) => (
             <li key={r.nickname}>
               <span className="rank">{i + 1}</span>
-              {r.avatarUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={r.avatarUrl} alt="" className="avatar sm" />
-              ) : (
-                <div className="avatar sm placeholder">{r.nickname[0]?.toUpperCase()}</div>
-              )}
+              <div className="avatar sm placeholder">{r.nickname[0]?.toUpperCase()}</div>
               <Link href={`/u/${r.nickname}`}>{r.nickname}</Link>
               <span className="value">{format(Number(r.value))}</span>
             </li>
@@ -109,12 +110,7 @@ function TopList({
           <p className="top-me-label">Ваше место</p>
           <div className="top-me-row">
             <span className="rank">{me.rank}</span>
-            {me.avatarUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={me.avatarUrl} alt="" className="avatar sm" />
-            ) : (
-              <div className="avatar sm placeholder">{me.nickname[0]?.toUpperCase()}</div>
-            )}
+            <div className="avatar sm placeholder">{me.nickname[0]?.toUpperCase()}</div>
             <Link href={`/u/${me.nickname}`}>{me.nickname}</Link>
             <span className="value">{format(Number(me.value))}</span>
           </div>

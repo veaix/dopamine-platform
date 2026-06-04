@@ -63,12 +63,12 @@ function trimAvatarUrl(url: string | null) {
   return url;
 }
 
-function mapRows<T extends { value: unknown; avatarUrl?: string | null }>(rows: T[]) {
+function mapRows<T extends { value: unknown; nickname: string }>(rows: T[]) {
   return rows.map((r) => ({
-    ...r,
-    avatarUrl: trimAvatarUrl(r.avatarUrl ?? null),
+    nickname: r.nickname,
+    avatarUrl: null,
     value: Number(r.value),
-  })) as (Omit<T, "value"> & { value: number })[];
+  }));
 }
 
 async function rankByPlaytime(user: { nickname: string; avatarUrl: string | null; playtimeSeconds: number }) {
@@ -156,7 +156,6 @@ function topByReaction(reaction: "like" | "dislike") {
   return db
     .select({
       nickname: schema.users.nickname,
-      avatarUrl: schema.users.avatarUrl,
       value: topCounts.value,
     })
     .from(topCounts)
@@ -171,7 +170,6 @@ const getCachedCoreTopLists = unstable_cache(
       db
         .select({
           nickname: schema.users.nickname,
-          avatarUrl: schema.users.avatarUrl,
           value: schema.users.playtimeSeconds,
         })
         .from(schema.users)
@@ -181,7 +179,6 @@ const getCachedCoreTopLists = unstable_cache(
       db
         .select({
           nickname: schema.users.nickname,
-          avatarUrl: schema.users.avatarUrl,
           value: schema.users.availableServerSlots,
         })
         .from(schema.users)
@@ -191,7 +188,6 @@ const getCachedCoreTopLists = unstable_cache(
       db
         .select({
           nickname: schema.users.nickname,
-          avatarUrl: schema.users.avatarUrl,
           value: schema.users.coinsBalance,
         })
         .from(schema.users)
@@ -226,11 +222,51 @@ async function getTopLists() {
   return { ...core, ...reactions };
 }
 
-const getCachedLeaderboardsAnonymous = unstable_cache(
+const getCachedPublicLeaderboards = unstable_cache(
   async () => buildLeaderboards(null, await getTopLists()),
-  ["leaderboards-anonymous"],
+  ["leaderboards-public"],
   { revalidate: CACHE_SECONDS },
 );
+
+export async function getPublicLeaderboards(): Promise<LeaderboardsData> {
+  return getCachedPublicLeaderboards();
+}
+
+import { mergeMeRanks, type ViewerMeRanks } from "@/lib/leaderboards-merge";
+
+export type { ViewerMeRanks } from "@/lib/leaderboards-merge";
+export { mergeMeRanks } from "@/lib/leaderboards-merge";
+
+export async function getViewerMeRanks(
+  viewer: {
+    id: string;
+    nickname: string;
+    avatarUrl: string | null;
+    playtimeSeconds: number;
+    availableServerSlots: number;
+    coinsBalance: number;
+    hiddenFromLeaderboards: boolean;
+  },
+): Promise<ViewerMeRanks | null> {
+  if (viewer.hiddenFromLeaderboards) return null;
+
+  const { likes, dislikes } = await getProfileReactionCounts(viewer.id);
+  const [meHours, meSlots, meCoins, meLikes, meDislikes] = await Promise.all([
+    rankByPlaytime(viewer),
+    rankByServerSlots(viewer),
+    rankByCoins(viewer),
+    withTimeout(rankByReaction(viewer, "like", likes), 5_000, null),
+    withTimeout(rankByReaction(viewer, "dislike", dislikes), 5_000, null),
+  ]);
+
+  return {
+    byHours: meHours,
+    byLikes: meLikes,
+    byDislikes: meDislikes,
+    byAvailableServerSlots: meSlots,
+    byCoins: meCoins,
+  };
+}
 
 async function buildLeaderboards(
   viewer: {
@@ -274,6 +310,7 @@ async function buildLeaderboards(
   };
 }
 
+/** Full leaderboards including "your rank" — slower; prefer getPublicLeaderboards + getViewerMeRanks. */
 export async function getLeaderboards(viewer: {
   id: string;
   nickname: string;
@@ -283,6 +320,9 @@ export async function getLeaderboards(viewer: {
   coinsBalance: number;
   hiddenFromLeaderboards: boolean;
 } | null): Promise<LeaderboardsData> {
-  if (!viewer) return getCachedLeaderboardsAnonymous();
-  return buildLeaderboards(viewer, await getTopLists());
+  const publicData = await getPublicLeaderboards();
+  if (!viewer) return publicData;
+  const me = await getViewerMeRanks(viewer);
+  if (!me) return publicData;
+  return mergeMeRanks(publicData, me, viewer.nickname);
 }
