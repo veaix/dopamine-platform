@@ -12,7 +12,20 @@ export async function GET(request: Request) {
   const filter = url.searchParams.get("filter") ?? "all";
   const limit = Math.min(Number(url.searchParams.get("limit") ?? 100), 500);
 
-  const rows = await db.select().from(schema.activationKeys).limit(limit);
+  const rows = await db
+    .select({
+      id: schema.activationKeys.id,
+      code: schema.activationKeys.code,
+      grantServers: schema.activationKeys.grantServers,
+      grantCoins: schema.activationKeys.grantCoins,
+      maxUses: schema.activationKeys.maxUses,
+      usesCount: schema.activationKeys.usesCount,
+      isActive: schema.activationKeys.isActive,
+      expiresAt: schema.activationKeys.expiresAt,
+      createdAt: schema.activationKeys.createdAt,
+    })
+    .from(schema.activationKeys)
+    .limit(limit);
   const keyIds = rows.map((k) => k.id);
 
   const redemptions =

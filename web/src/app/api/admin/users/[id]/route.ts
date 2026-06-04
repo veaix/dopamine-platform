@@ -7,7 +7,10 @@ import { hashPassword } from "@/server/utils/crypto";
 import { getProfileReactionCounts } from "@/lib/profile-stats";
 import { isCreator, parsePermissions } from "@/lib/admin-permissions";
 import { json, err } from "@/lib/api";
-import { sanitizeAdminUser } from "@/server/admin/sanitize-user";
+import {
+  adminUserDetailJson,
+  loadAdminUserDetail,
+} from "@/server/admin/user-columns";
 import { validateNickname } from "@/lib/nickname";
 import { isNicknameTaken } from "@/server/auth/pending-registration";
 import { revokeUserDevices } from "@/server/auth/device";
@@ -19,16 +22,18 @@ export async function GET(_request: Request, { params }: Params) {
   if (error) return error;
 
   const { id } = await params;
-  const user = await db.query.users.findFirst({ where: (u, { eq: eqFn }) => eqFn(u.id, id) });
+  const user = await loadAdminUserDetail(id);
   if (!user) return err("Not found", 404);
 
-  const [reactions, devices, keys, promos, logins] = await Promise.all([
+  const [reactions, devices, logins] = await Promise.all([
     getProfileReactionCounts(user.id),
-    db.query.devices.findMany({ where: (d, { eq: eqFn }) => eqFn(d.userId, id) }),
-    db.query.keyRedemptions.findMany({ where: (k, { eq: eqFn }) => eqFn(k.userId, id) }),
-    db.query.promoRedemptions.findMany({ where: (p, { eq: eqFn }) => eqFn(p.userId, id) }),
+    db.query.devices.findMany({
+      where: (d, { eq: eqFn }) => eqFn(d.userId, id),
+      columns: { id: true, label: true, lastSeenAt: true },
+    }),
     db.query.loginEvents.findMany({
       where: (l, { eq: eqFn }) => eqFn(l.userId, id),
+      columns: { ipAddress: true, createdAt: true },
       limit: 20,
     }),
   ]);
@@ -36,14 +41,19 @@ export async function GET(_request: Request, { params }: Params) {
   const { likes, dislikes } = reactions;
 
   return json({
-    user: sanitizeAdminUser(user),
+    user: adminUserDetailJson(user),
     likes,
     dislikes,
-    devices,
+    devices: devices.map((d) => ({
+      id: d.id,
+      label: d.label,
+      lastSeenAt: d.lastSeenAt?.toISOString() ?? null,
+    })),
     permissions: parsePermissions(user),
-    keyRedemptions: keys,
-    promoRedemptions: promos,
-    loginEvents: logins,
+    loginEvents: logins.map((e) => ({
+      ipAddress: e.ipAddress,
+      createdAt: e.createdAt.toISOString(),
+    })),
   });
 }
 
@@ -136,9 +146,14 @@ export async function PATCH(request: Request, { params }: Params) {
     );
   }
 
-  const user = await db.query.users.findFirst({ where: (u, { eq: eqFn }) => eqFn(u.id, id) });
+  const user = await loadAdminUserDetail(id);
   const reactions = await getProfileReactionCounts(id);
-  return json({ ok: true, user: user ? sanitizeAdminUser(user) : null, ...reactions });
+  return json({
+    ok: true,
+    user: user ? adminUserDetailJson(user) : null,
+    likes: reactions.likes,
+    dislikes: reactions.dislikes,
+  });
 }
 
 export async function DELETE(request: Request, { params }: Params) {

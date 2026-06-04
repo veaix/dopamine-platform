@@ -9,7 +9,19 @@ export async function GET() {
   const { error } = await requireAdminApi("promo");
   if (error) return error;
 
-  const promos = await db.select().from(schema.promoCodes);
+  const promos = await db
+    .select({
+      id: schema.promoCodes.id,
+      code: schema.promoCodes.code,
+      rewardCoins: schema.promoCodes.rewardCoins,
+      maxUses: schema.promoCodes.maxUses,
+      usesCount: schema.promoCodes.usesCount,
+      isActive: schema.promoCodes.isActive,
+      kind: schema.promoCodes.kind,
+      ownerUserId: schema.promoCodes.ownerUserId,
+      createdAt: schema.promoCodes.createdAt,
+    })
+    .from(schema.promoCodes);
   const ownerIds = [...new Set(promos.map((p) => p.ownerUserId).filter(Boolean))] as string[];
   const owners =
     ownerIds.length > 0

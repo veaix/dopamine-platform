@@ -24,7 +24,11 @@ export async function POST(request: Request, { params }: Params) {
     return err("Сумма от -1000000 до 1000000", 400);
   }
 
-  const user = await db.query.users.findFirst({ where: (u, { eq: eqFn }) => eqFn(u.id, id) });
+  const [user] = await db
+    .select({ coinsBalance: schema.users.coinsBalance, nickname: schema.users.nickname })
+    .from(schema.users)
+    .where(eq(schema.users.id, id))
+    .limit(1);
   if (!user) return err("Not found", 404);
 
   const nextBalance = Math.max(0, user.coinsBalance + amount);

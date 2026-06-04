@@ -1,7 +1,8 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import type { AdminShellProps } from "@/server/admin/shell";
 
 const AdminDashboardPanel = dynamic(
   () => import("@/components/admin/admin-extra-panels").then((m) => ({ default: m.AdminDashboardPanel })),
@@ -101,27 +102,22 @@ type PromoRow = {
   ownerNickname?: string | null;
 };
 
-export function AdminClient() {
-  const [tab, setTab] = useState<Tab>("dashboard");
+export function AdminClient({ initialShell }: { initialShell: AdminShellProps }) {
+  const [tab, setTab] = useState<Tab>(() => {
+    const first = (Object.keys(TAB_PERM) as Tab[]).find((t) =>
+      initialShell.permissions.includes(TAB_PERM[t]),
+    );
+    return first ?? "dashboard";
+  });
   const [error, setError] = useState("");
   const [msg, setMsg] = useState("");
-  const [permissions, setPermissions] = useState<AdminPermission[]>([]);
-  const [isCreator, setIsCreator] = useState(false);
+  const permissions = initialShell.permissions;
+  const isCreator = initialShell.isCreator;
 
-  useEffect(() => {
-    void fetch("/api/admin/me")
-      .then((r) => r.json())
-      .then((d) => {
-        setPermissions(d.permissions ?? []);
-        setIsCreator(Boolean(d.isCreator));
-        const tabs = (Object.keys(TAB_PERM) as Tab[]).filter((t) =>
-          (d.permissions as AdminPermission[])?.includes(TAB_PERM[t]),
-        );
-        if (tabs.length && !tabs.includes(tab)) setTab(tabs[0]);
-      });
-  }, []);
-
-  const visibleTabs = (Object.keys(TAB_PERM) as Tab[]).filter((t) => permissions.includes(TAB_PERM[t]));
+  const visibleTabs = useMemo(
+    () => (Object.keys(TAB_PERM) as Tab[]).filter((t) => permissions.includes(TAB_PERM[t])),
+    [permissions],
+  );
 
   return (
     <div className="stack">
@@ -257,8 +253,38 @@ function AdminUsersPanel({
         if (d.error) onError(d.error);
         else {
           onMsg("Профиль сохранён");
+          if (d.user) {
+            const u = d.user as UserRow & { hiddenFromLeaderboards?: boolean; registrationIp?: string | null };
+            setDetail((prev) =>
+              prev
+                ? {
+                    ...prev,
+                    user: u,
+                    likes: d.likes ?? prev.likes,
+                    dislikes: d.dislikes ?? prev.dislikes,
+                  }
+                : prev,
+            );
+            setForm((f) => ({
+              ...f,
+              nickname: u.nickname,
+              email: u.email,
+              role: u.role,
+              bio: u.bio ?? "",
+              coinsBalance: u.coinsBalance,
+              availableServerSlots: u.availableServerSlots,
+              playtimeSeconds: u.playtimeSeconds,
+              totalServersCreated: u.totalServersCreated ?? 0,
+              likes: d.likes ?? f.likes,
+              dislikes: d.dislikes ?? f.dislikes,
+              isBlocked: u.isBlocked,
+              totpEnabled: u.totpEnabled ?? false,
+              emailVerified: Boolean(u.emailVerifiedAt),
+              hiddenFromLeaderboards: u.hiddenFromLeaderboards ?? false,
+              newPassword: "",
+            }));
+          }
           void search();
-          loadDetail(selectedId);
         }
       });
   }
@@ -280,7 +306,13 @@ function AdminUsersPanel({
             Найти
           </button>
         </div>
-        <p className="muted">Найдено: {users.length}</p>
+        <p className="muted">
+          {q.trim()
+            ? `Найдено: ${users.length}`
+            : users.length
+              ? `Последние активные (${users.length}) — введите запрос для точного поиска`
+              : "Введите ник, email или IP и нажмите «Найти»"}
+        </p>
         <ul className="list admin-user-list">
           {users.map((u) => (
             <li key={u.id}>
@@ -446,7 +478,12 @@ function AdminUsersPanel({
                     if (d.error) onError(d.error);
                     else {
                       onMsg(`Баланс: ${d.coinsBalance} монет`);
-                      loadDetail(selectedId);
+                      set("coinsBalance", d.coinsBalance);
+                      setDetail((prev) =>
+                        prev?.user
+                          ? { ...prev, user: { ...prev.user, coinsBalance: d.coinsBalance } }
+                          : prev,
+                      );
                     }
                   });
               }}
