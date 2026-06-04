@@ -57,8 +57,18 @@ function buildCategory(top: TopRow[], me: MeRank | null, viewerNickname: string 
   return { top, me };
 }
 
-function mapRows<T extends { value: unknown }>(rows: T[]) {
-  return rows.map((r) => ({ ...r, value: Number(r.value) })) as (Omit<T, "value"> & { value: number })[];
+function trimAvatarUrl(url: string | null) {
+  if (!url) return null;
+  if (url.startsWith("data:") || url.length > 512) return null;
+  return url;
+}
+
+function mapRows<T extends { value: unknown; avatarUrl?: string | null }>(rows: T[]) {
+  return rows.map((r) => ({
+    ...r,
+    avatarUrl: trimAvatarUrl(r.avatarUrl ?? null),
+    value: Number(r.value),
+  })) as (Omit<T, "value"> & { value: number })[];
 }
 
 async function rankByPlaytime(user: { nickname: string; avatarUrl: string | null; playtimeSeconds: number }) {
@@ -69,7 +79,7 @@ async function rankByPlaytime(user: { nickname: string; avatarUrl: string | null
   return {
     rank: Number(count) + 1,
     nickname: user.nickname,
-    avatarUrl: user.avatarUrl,
+    avatarUrl: trimAvatarUrl(user.avatarUrl),
     value: user.playtimeSeconds,
   };
 }
@@ -86,7 +96,7 @@ async function rankByServerSlots(user: {
   return {
     rank: Number(count) + 1,
     nickname: user.nickname,
-    avatarUrl: user.avatarUrl,
+    avatarUrl: trimAvatarUrl(user.avatarUrl),
     value: user.availableServerSlots,
   };
 }
@@ -99,7 +109,7 @@ async function rankByCoins(user: { nickname: string; avatarUrl: string | null; c
   return {
     rank: Number(count) + 1,
     nickname: user.nickname,
-    avatarUrl: user.avatarUrl,
+    avatarUrl: trimAvatarUrl(user.avatarUrl),
     value: user.coinsBalance,
   };
 }
@@ -125,7 +135,7 @@ async function rankByReaction(
   return {
     rank: Number(count) + 1,
     nickname: user.nickname,
-    avatarUrl: user.avatarUrl,
+    avatarUrl: trimAvatarUrl(user.avatarUrl),
     value: userCount,
   };
 }
