@@ -91,19 +91,18 @@ async function rankByReaction(
   reaction: "like" | "dislike",
   userCount: number,
 ) {
-  const [{ count }] = await db.select({
-    count: sql<number>`(
-      select count(*) from (
-        select ${schema.profileReactions.targetUserId}
-        from ${schema.profileReactions}
-        inner join ${schema.users} on ${schema.users.id} = ${schema.profileReactions.targetUserId}
-        where ${schema.profileReactions.reaction} = ${reaction}
-          and ${schema.users.hiddenFromLeaderboards} = 0
-        group by ${schema.profileReactions.targetUserId}
-        having count(${schema.profileReactions.id}) > ${userCount}
-      )
-    )`,
-  });
+  const higherCounts = db
+    .select({ targetUserId: schema.profileReactions.targetUserId })
+    .from(schema.profileReactions)
+    .innerJoin(schema.users, eq(schema.users.id, schema.profileReactions.targetUserId))
+    .where(and(eq(schema.profileReactions.reaction, reaction), visible))
+    .groupBy(schema.profileReactions.targetUserId)
+    .having(gt(sql<number>`count(${schema.profileReactions.id})`, userCount))
+    .as("higher_reaction_counts");
+
+  const [{ count }] = await db
+    .select({ count: sql<number>`count(*)` })
+    .from(higherCounts);
 
   return {
     rank: Number(count) + 1,
