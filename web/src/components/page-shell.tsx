@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { PageDecor, type PageDecorVariant } from "@/components/page-decor";
+import { SitePageBackground, type SitePageScene } from "@/components/site-page-background";
 
 type PageShellProps = {
   children: ReactNode;
@@ -21,13 +22,13 @@ export function PageShell({
   decor,
 }: PageShellProps) {
   const hasHead = Boolean(title || subtitle || tag);
+  const scene: SitePageScene = decor ?? "default";
 
   return (
-    <main className={`site-page page page-enter${narrow ? " page-narrow" : ""}${className ? ` ${className}` : ""}`}>
-      <div className="site-page-bg" aria-hidden>
-        <span className="site-page-orb site-page-orb--1" />
-        <span className="site-page-orb site-page-orb--2" />
-      </div>
+    <main
+      className={`site-page site-page--${scene} page page-enter${narrow ? " page-narrow" : ""}${className ? ` ${className}` : ""}`}
+    >
+      <SitePageBackground scene={scene} />
       {decor ? <PageDecor variant={decor} /> : null}
       <div className="site-page-inner">
         {hasHead ? (

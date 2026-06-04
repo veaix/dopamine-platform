@@ -7,6 +7,7 @@ import { AccountMockup, ModsMockup, PlayMockup, ServerMockup } from "@/component
 import { DownloadButton } from "@/components/download-button";
 import { SocialLinks } from "@/components/social-links";
 import { PageDecor } from "@/components/page-decor";
+import { SitePageBackground } from "@/components/site-page-background";
 import { useAuth } from "@/components/providers/auth-provider";
 
 type LandingPageProps = {
@@ -53,16 +54,10 @@ export function LandingPage({ releaseTag, setupSize }: LandingPageProps) {
   const { user } = useAuth();
 
   return (
-    <main className="landing">
+    <main className="landing landing--home">
+      <SitePageBackground scene="landing" />
       <PageDecor variant="landing" />
       <section className="landing-hero" id="download">
-        <div className="landing-hero-bg" aria-hidden>
-          <span className="landing-orb landing-orb--1" />
-          <span className="landing-orb landing-orb--2" />
-          <span className="landing-orb landing-orb--3" />
-          <span className="landing-grid" />
-        </div>
-
         <div className="landing-hero-inner">
           <div className="landing-logo-wrap landing-animate landing-animate--1">
             <div className="landing-logo-ring" aria-hidden />

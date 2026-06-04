@@ -61,6 +61,8 @@ a:hover {
 
 .shell-main {
   flex: 1;
+  position: relative;
+  isolation: isolate;
 }
 
 /* Header */
@@ -335,39 +337,173 @@ main.page,
   padding: 2rem 1.5rem 3.5rem;
 }
 
+/* Full-viewport landing-style backdrop (grid + orbs), per-page tint via --scene-* */
 .site-page-bg {
-  position: absolute;
-  inset: 0;
+  --scene-orb-1: rgba(34, 211, 238, 0.2);
+  --scene-orb-2: rgba(56, 189, 248, 0.11);
+  --scene-orb-3: rgba(34, 211, 238, 0.09);
+  --scene-grid-a: rgba(34, 211, 238, 0.042);
+  --scene-grid-b: rgba(34, 211, 238, 0.042);
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: var(--header-h);
+  bottom: 0;
   overflow: hidden;
   pointer-events: none;
   z-index: 0;
 }
 
+.site-page-grid {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(var(--scene-grid-a) 1px, transparent 1px),
+    linear-gradient(90deg, var(--scene-grid-b) 1px, transparent 1px);
+  background-size: 48px 48px;
+  mask-image: radial-gradient(ellipse 85% 70% at 50% 18%, black 20%, transparent 72%);
+}
+
 .site-page-orb {
   position: absolute;
   border-radius: 50%;
-  filter: blur(70px);
+  filter: blur(60px);
 }
 
 .site-page-orb--1 {
-  width: 360px;
-  height: 360px;
-  top: -5%;
-  right: -8%;
-  background: rgba(34, 211, 238, 0.12);
+  width: min(420px, 55vw);
+  height: min(420px, 55vw);
+  top: -10%;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--scene-orb-1);
+  animation: landing-float 9s ease-in-out infinite;
 }
 
 .site-page-orb--2 {
-  width: 280px;
-  height: 280px;
-  bottom: 10%;
-  left: -10%;
-  background: rgba(56, 189, 248, 0.08);
+  width: min(300px, 42vw);
+  height: min(300px, 42vw);
+  top: 18%;
+  right: -6%;
+  background: var(--scene-orb-2);
+  animation: landing-float-side 11s ease-in-out infinite;
+  animation-delay: -2s;
 }
 
+.site-page-orb--3 {
+  width: min(240px, 36vw);
+  height: min(240px, 36vw);
+  bottom: 4%;
+  left: -4%;
+  background: var(--scene-orb-3);
+  animation: landing-float-side 12s ease-in-out infinite;
+  animation-delay: -4.5s;
+}
+
+.site-page-bg--default {
+  --scene-orb-1: rgba(34, 211, 238, 0.18);
+  --scene-orb-2: rgba(56, 189, 248, 0.1);
+  --scene-orb-3: rgba(34, 211, 238, 0.08);
+}
+
+.site-page-bg--landing {
+  --scene-orb-1: rgba(34, 211, 238, 0.22);
+  --scene-orb-2: rgba(56, 189, 248, 0.12);
+  --scene-orb-3: rgba(34, 211, 238, 0.1);
+}
+
+.site-page-bg--dashboard {
+  --scene-orb-1: rgba(34, 211, 238, 0.16);
+  --scene-orb-2: rgba(52, 211, 153, 0.11);
+  --scene-orb-3: rgba(56, 189, 248, 0.08);
+}
+
+.site-page-bg--dashboard .site-page-orb--2 {
+  top: 28%;
+  right: -10%;
+}
+
+.site-page-bg--admin {
+  --scene-orb-1: rgba(192, 132, 252, 0.14);
+  --scene-orb-2: rgba(34, 211, 238, 0.12);
+  --scene-orb-3: rgba(251, 191, 36, 0.07);
+  --scene-grid-a: rgba(192, 132, 252, 0.035);
+  --scene-grid-b: rgba(34, 211, 238, 0.03);
+}
+
+.site-page-bg--admin .site-page-orb--1 {
+  left: 62%;
+}
+
+.site-page-bg--tops {
+  --scene-orb-1: rgba(251, 191, 36, 0.12);
+  --scene-orb-2: rgba(34, 211, 238, 0.14);
+  --scene-orb-3: rgba(56, 189, 248, 0.09);
+}
+
+.site-page-bg--tops .site-page-orb--3 {
+  bottom: 18%;
+  left: 8%;
+}
+
+.site-page-bg--profile {
+  --scene-orb-1: rgba(244, 114, 182, 0.1);
+  --scene-orb-2: rgba(34, 211, 238, 0.15);
+  --scene-orb-3: rgba(56, 189, 248, 0.08);
+}
+
+.site-page-bg--profile .site-page-orb--2 {
+  top: 12%;
+  left: -8%;
+  right: auto;
+}
+
+.site-page-bg--login {
+  --scene-orb-1: rgba(99, 102, 241, 0.14);
+  --scene-orb-2: rgba(34, 211, 238, 0.16);
+  --scene-orb-3: rgba(56, 189, 248, 0.07);
+}
+
+.site-page-bg--register {
+  --scene-orb-1: rgba(34, 211, 238, 0.2);
+  --scene-orb-2: rgba(103, 232, 249, 0.13);
+  --scene-orb-3: rgba(52, 211, 153, 0.08);
+}
+
+.site-page-bg--verify {
+  --scene-orb-1: rgba(56, 189, 248, 0.16);
+  --scene-orb-2: rgba(34, 211, 238, 0.12);
+  --scene-orb-3: rgba(99, 102, 241, 0.08);
+}
+
+.site-page-bg--password {
+  --scene-orb-1: rgba(34, 211, 238, 0.12);
+  --scene-orb-2: rgba(148, 163, 184, 0.1);
+  --scene-orb-3: rgba(56, 189, 248, 0.09);
+}
+
+.site-page-bg--password .site-page-orb--1 {
+  top: 8%;
+  left: 38%;
+}
+
+.landing--home .site-page-bg {
+  z-index: 0;
+}
+
+.landing {
+  position: relative;
+  z-index: 1;
+}
+
+.site-page,
 .site-page-inner {
   position: relative;
   z-index: 1;
+}
+
+.site-page-inner {
+  z-index: 2;
 }
 
 .site-page-head {
@@ -498,24 +634,6 @@ main.page,
   }
 }
 
-.site-page-orb--1 {
-  animation: site-orb-drift 10s ease-in-out infinite;
-}
-
-.site-page-orb--2 {
-  animation: site-orb-drift 12s ease-in-out infinite reverse;
-}
-
-@keyframes site-orb-drift {
-  0%,
-  100% {
-    transform: translate(0, 0);
-  }
-  50% {
-    transform: translate(12px, -16px);
-  }
-}
-
 /* Bio editor */
 .bio-editor-note {
   margin: 0 0 0.85rem;
@@ -639,6 +757,7 @@ main.page,
   .page-enter-body,
   .page-stagger > *,
   .page-stagger .stack > *,
+  .site-page-bg .site-page-orb,
   .site-page-orb--1,
   .site-page-orb--2 {
     animation: none !important;
@@ -666,8 +785,8 @@ main.page,
 }
 
 .card {
-  background: rgba(12, 18, 26, 0.82);
-  backdrop-filter: blur(10px);
+  background: rgba(12, 18, 26, 0.78);
+  backdrop-filter: blur(12px);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   padding: 1.35rem 1.45rem;
