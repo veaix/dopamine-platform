@@ -29,7 +29,7 @@ export function SiteLogo({
   const inner = (
     <>
       {showImage ? (
-        <span className="site-logo-frame">
+        <span className="site-logo-frame" style={{ width: dim.w, height: dim.h }}>
           <Image
             src="/brand-logo.png"
             alt=""
