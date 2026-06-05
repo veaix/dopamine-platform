@@ -18,7 +18,6 @@ type PageDecorProps = {
 function DecorStage({ children }: { children: ReactNode }) {
   return (
     <div className="page-decor-stage">
-      <span className="page-decor-pedestal" />
       <div className="page-decor-object">{children}</div>
     </div>
   );
