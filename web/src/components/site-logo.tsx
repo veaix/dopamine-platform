@@ -29,15 +29,17 @@ export function SiteLogo({
   const inner = (
     <>
       {showImage ? (
-        <Image
-          src="/brand-logo.png"
-          alt=""
-          width={dim.w}
-          height={dim.h}
-          className="site-logo-img"
-          priority={size === "hero"}
-          aria-hidden
-        />
+        <span className="site-logo-frame">
+          <Image
+            src="/brand-logo.png"
+            alt=""
+            width={dim.w}
+            height={dim.h}
+            className="site-logo-img"
+            priority={size === "hero"}
+            aria-hidden
+          />
+        </span>
       ) : null}
       {showText ? <span className="site-logo-text">dopamine</span> : null}
     </>

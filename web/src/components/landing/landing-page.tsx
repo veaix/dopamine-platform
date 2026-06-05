@@ -61,14 +61,16 @@ export function LandingPage({ releaseTag, setupSize }: LandingPageProps) {
         <div className="landing-hero-inner">
           <div className="landing-logo-wrap landing-animate landing-animate--1">
             <div className="landing-logo-ring" aria-hidden />
-            <Image
-              src="/brand-logo.png"
-              alt="dopamine"
-              width={240}
-              height={240}
-              className="landing-logo-img"
-              priority
-            />
+            <div className="landing-logo-frame">
+              <Image
+                src="/brand-logo.png"
+                alt="dopamine"
+                width={240}
+                height={240}
+                className="landing-logo-img"
+                priority
+              />
+            </div>
           </div>
 
           <p className="landing-eyebrow landing-animate landing-animate--2">Minecraft launcher · Windows</p>

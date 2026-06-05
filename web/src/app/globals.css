@@ -104,18 +104,34 @@ a:hover {
   color: var(--accent-bright);
 }
 
+.site-logo-frame {
+  display: block;
+  line-height: 0;
+  flex-shrink: 0;
+  border-radius: var(--radius);
+  overflow: hidden;
+  box-shadow: 0 0 10px var(--accent-glow);
+}
+
+.site-logo-frame > span {
+  display: block !important;
+  border-radius: inherit;
+  overflow: hidden;
+}
+
 .site-logo-img {
   display: block;
   object-fit: contain;
-  filter: drop-shadow(0 0 10px var(--accent-glow));
+  border-radius: inherit;
 }
 
 .site-logo-text {
   text-transform: lowercase;
 }
 
-.site-logo--hero .site-logo-img {
-  filter: drop-shadow(0 0 24px var(--accent-glow));
+.site-logo--hero .site-logo-frame {
+  border-radius: var(--radius-lg);
+  box-shadow: 0 0 24px var(--accent-glow);
 }
 
 .site-nav {
@@ -2082,6 +2098,24 @@ select:focus {
   margin: 0 auto 1.75rem;
 }
 
+.landing-logo-frame {
+  position: relative;
+  z-index: 1;
+  display: block;
+  line-height: 0;
+  border-radius: clamp(28px, 7vw, 44px);
+  overflow: hidden;
+  box-shadow:
+    0 0 40px rgba(34, 211, 238, 0.45),
+    0 0 80px rgba(34, 211, 238, 0.2);
+}
+
+.landing-logo-frame > span {
+  display: block !important;
+  border-radius: inherit;
+  overflow: hidden;
+}
+
 .landing-logo-ring {
   position: absolute;
   inset: -18%;
@@ -2113,9 +2147,10 @@ select:focus {
 
 .landing-logo-img {
   position: relative;
+  display: block;
   width: clamp(180px, 28vw, 240px);
   height: auto;
-  filter: drop-shadow(0 0 40px rgba(34, 211, 238, 0.45)) drop-shadow(0 0 80px rgba(34, 211, 238, 0.2));
+  border-radius: inherit;
   animation: landing-logo-float 5s ease-in-out infinite;
 }
 
