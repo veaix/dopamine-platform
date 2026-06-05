@@ -4,6 +4,7 @@ import { getCurrentUser } from "@/server/auth/session";
 import { json, err } from "@/lib/api";
 import { BIO_EDIT_COOLDOWN_MS, getDashboardUser } from "@/server/dashboard/profile";
 import { loadDashboardUserRow } from "@/server/dashboard/load-user";
+import { avatarVersionKey } from "@/lib/avatar-url";
 import { validateAvatarDataUrl } from "@/server/security/avatar";
 import { ensureTrialWindowStarted } from "@/server/trial-server";
 
@@ -56,11 +57,15 @@ export async function PATCH(request: Request) {
 
   await db.update(schema.users).set(patch).where(eq(schema.users.id, user.id));
 
-  let hasAvatar: boolean | undefined;
   if (body.avatarUrl !== undefined) {
     const row = await loadDashboardUserRow(user.id);
-    hasAvatar = row?.hasAvatar ?? false;
+    const hasAvatar = row?.hasAvatar ?? false;
+    return json({
+      ok: true,
+      hasAvatar,
+      avatarVersion: row ? avatarVersionKey(hasAvatar, row.updatedAt) : undefined,
+    });
   }
 
-  return json({ ok: true, ...(hasAvatar !== undefined ? { hasAvatar } : {}) });
+  return json({ ok: true });
 }

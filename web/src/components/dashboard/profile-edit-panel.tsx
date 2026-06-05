@@ -42,8 +42,8 @@ export function ProfileEditPanel({ me, onUpdated }: { me: DashboardUser; onUpdat
           if (!r.ok) setError(d.error ?? "Ошибка загрузки");
           else {
             setMsg("Аватар обновлён");
-            setShowAvatar(true);
-            setAvatarRev(Date.now());
+            setShowAvatar(Boolean(d.hasAvatar ?? true));
+            setAvatarRev(d.avatarVersion ?? Date.now());
             onUpdated();
           }
         })
@@ -107,6 +107,7 @@ export function ProfileEditPanel({ me, onUpdated }: { me: DashboardUser; onUpdat
             nickname={me.nickname}
             size="xl"
             hasAvatar={showAvatar}
+            avatarVersion={me.avatarVersion}
             cacheBust={avatarRev || undefined}
           />
           <label className="btn secondary file">
@@ -140,7 +141,7 @@ export function ProfileEditPanel({ me, onUpdated }: { me: DashboardUser; onUpdat
                   else {
                     setMsg("Аватар удалён");
                     setShowAvatar(false);
-                    setAvatarRev(Date.now());
+                    setAvatarRev(0);
                     onUpdated();
                   }
                 })

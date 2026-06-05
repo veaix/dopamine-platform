@@ -3,6 +3,7 @@ import { eq } from "drizzle-orm";
 import { db } from "@/server/db";
 import { getProfileReactionCounts } from "@/lib/profile-stats";
 import { getTrialServerInfoForUser, type TrialServerInfo } from "@/server/trial-server";
+import { avatarVersionKey } from "@/lib/avatar-url";
 import { parseSocialLinks } from "@/lib/social";
 import type { DashboardUserRow } from "@/server/dashboard/load-user";
 
@@ -15,6 +16,7 @@ export type DashboardUser = {
   email: string;
   role: string;
   hasAvatar: boolean;
+  avatarVersion?: number;
   bio: string | null;
   social: ReturnType<typeof parseSocialLinks>;
   coinsBalance: number;
@@ -70,6 +72,7 @@ export async function getDashboardUser(user: DashboardUserRow): Promise<Dashboar
     email: user.email,
     role: user.role,
     hasAvatar: user.hasAvatar,
+    avatarVersion: avatarVersionKey(user.hasAvatar, user.updatedAt),
     bio: user.bio,
     social: parseSocialLinks(user.socialLinksJson),
     coinsBalance: user.coinsBalance,

@@ -21,6 +21,7 @@ export async function findUserProfileByNickname(nickname: string) {
         WHEN ${schema.users.avatarUrl} IS NOT NULL AND length(${schema.users.avatarUrl}) > 0 THEN 1
         ELSE 0
       END`,
+      updatedAt: schema.users.updatedAt,
     })
     .from(schema.users)
     .where(nicknameEquals(trimmed))

@@ -18,6 +18,7 @@ export type DashboardUserRow = {
   trialWindowStartedAt: Date | null;
   trialServerUsedAt: Date | null;
   hasAvatar: boolean;
+  updatedAt: Date;
 };
 
 export async function loadDashboardUserRow(userId: string): Promise<DashboardUserRow | undefined> {
@@ -42,6 +43,7 @@ export async function loadDashboardUserRow(userId: string): Promise<DashboardUse
         WHEN ${schema.users.avatarUrl} IS NOT NULL AND length(${schema.users.avatarUrl}) > 0 THEN 1
         ELSE 0
       END`,
+      updatedAt: schema.users.updatedAt,
     })
     .from(schema.users)
     .where(eq(schema.users.id, userId))

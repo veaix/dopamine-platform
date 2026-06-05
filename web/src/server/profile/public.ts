@@ -1,5 +1,6 @@
 import { eq } from "drizzle-orm";
 import { db } from "@/server/db";
+import { avatarVersionKey } from "@/lib/avatar-url";
 import { parseSocialLinks } from "@/lib/social";
 import { getFriendRelation, getProfileReactionCounts } from "@/lib/profile-stats";
 import { getRecentProfileViewers, recordProfileView } from "@/server/profile/views";
@@ -12,6 +13,7 @@ export type PublicProfile = {
   nickname: string;
   role: string;
   hasAvatar: boolean;
+  avatarVersion?: number;
   bio: string | null;
   social: ReturnType<typeof parseSocialLinks>;
   playtimeSeconds: number;
@@ -58,6 +60,7 @@ export async function getPublicProfileCore(
     nickname: target.nickname,
     role: target.role,
     hasAvatar: target.hasAvatar,
+    avatarVersion: avatarVersionKey(target.hasAvatar, target.updatedAt),
     bio: target.bio,
     social: parseSocialLinks(target.socialLinksJson),
     playtimeSeconds: target.playtimeSeconds,

@@ -52,7 +52,13 @@ export function UserMenu() {
         aria-haspopup="menu"
         onClick={() => setOpen((v) => !v)}
       >
-        <AvatarImg userId={user.id} nickname={user.nickname} size="md" hasAvatar={user.hasAvatar} />
+        <AvatarImg
+          userId={user.id}
+          nickname={user.nickname}
+          size="md"
+          hasAvatar={user.hasAvatar}
+          avatarVersion={user.avatarVersion}
+        />
         <span className="user-menu-name">{user.nickname}</span>
         <span className="user-menu-chevron" aria-hidden>
           ▾

@@ -36,4 +36,5 @@ export type SessionDbUser = {
   totpEnabled: boolean;
   totpSecret: string | null;
   hasAvatar: boolean;
+  updatedAt: Date;
 };

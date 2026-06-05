@@ -36,7 +36,7 @@ export async function loadUserAvatarMeta(
     .limit(1);
   const url = row?.avatarUrl?.trim();
   if (!url) return null;
-  const cacheTag = `${userId}-${row.updatedAt.getTime()}-${url.length}`;
+  const cacheTag = `${row.updatedAt.getTime()}-${url.length}-${url.slice(0, 48)}`;
   return { avatarUrl: url, cacheTag };
 }
 
@@ -54,7 +54,7 @@ export async function loadUserAvatarByNickname(nickname: string): Promise<{
   return { userId: row.id, avatarUrl: url };
 }
 
-const AVATAR_CACHE = "private, max-age=3600, must-revalidate";
+const AVATAR_CACHE = "private, no-cache";
 
 export function avatarNotFoundResponse(): Response {
   return new Response(null, {

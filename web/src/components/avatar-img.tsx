@@ -12,7 +12,9 @@ type AvatarImgProps = {
   className?: string;
   /** When false, show letter placeholder without requesting the image. */
   hasAvatar?: boolean;
-  /** Bust CDN/browser cache after upload (e.g. Date.now()). */
+  /** Server-side revision (user.updatedAt ms) — required to avoid stale browser cache. */
+  avatarVersion?: number | string;
+  /** Extra bust after local upload/delete before session refresh. */
   cacheBust?: number | string;
 };
 
@@ -22,16 +24,18 @@ export function AvatarImg({
   size = "sm",
   className = "",
   hasAvatar = true,
+  avatarVersion,
   cacheBust,
 }: AvatarImgProps) {
   const [failed, setFailed] = useState(false);
   const initial = nickname[0]?.toUpperCase() ?? "?";
   const cls = `avatar ${size}${className ? ` ${className}` : ""}`.trim();
-  const src = userAvatarSrc(userId, cacheBust);
+  const bust = cacheBust ?? avatarVersion;
+  const src = userAvatarSrc(userId, hasAvatar ? bust : undefined);
 
   useEffect(() => {
     setFailed(false);
-  }, [userId, cacheBust, hasAvatar, src]);
+  }, [userId, cacheBust, avatarVersion, hasAvatar, src]);
 
   if (!hasAvatar || failed) {
     return <div className={`${cls} placeholder`}>{initial}</div>;

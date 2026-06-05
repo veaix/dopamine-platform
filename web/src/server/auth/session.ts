@@ -38,6 +38,7 @@ export const getCurrentUser = cache(async function getCurrentUser(): Promise<Ses
           WHEN ${schema.users.avatarUrl} IS NOT NULL AND length(${schema.users.avatarUrl}) > 0 THEN 1
           ELSE 0
         END`,
+        updatedAt: schema.users.updatedAt,
       })
       .from(schema.users)
       .where(and(eq(schema.users.id, payload.sub), eq(schema.users.isBlocked, false)))
