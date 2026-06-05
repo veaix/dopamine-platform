@@ -65,8 +65,8 @@ export function LandingPage({ releaseTag, setupSize }: LandingPageProps) {
               <Image
                 src="/brand-logo.png"
                 alt="dopamine"
-                width={240}
-                height={240}
+                width={272}
+                height={272}
                 className="landing-logo-img"
                 priority
               />
