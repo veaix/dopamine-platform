@@ -49,6 +49,7 @@ try {
   await addColumn("users", "trial_server_used_at", "INTEGER");
 
   await addColumn("platform_settings", "trial_server_enabled", "INTEGER NOT NULL DEFAULT 1");
+  await addColumn("platform_settings", "creator_unlimited_enabled", "INTEGER NOT NULL DEFAULT 1");
 
   // Anchor trial window to account creation / email verify — not deploy-time login.
   await run(`

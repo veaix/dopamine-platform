@@ -8,6 +8,7 @@ export type FraudLimits = {
   registrationMaxPerIp: number;
   maxUnverifiedPerIp: number;
   trialServerEnabled: boolean;
+  creatorUnlimitedEnabled: boolean;
   source: "database" | "env" | "default";
 };
 
@@ -40,6 +41,7 @@ export async function getFraudLimits(): Promise<FraudLimits> {
       registrationMaxPerIp: row.registrationMaxPerIp,
       maxUnverifiedPerIp: row.maxUnverifiedPerIp,
       trialServerEnabled: row.trialServerEnabled,
+      creatorUnlimitedEnabled: row.creatorUnlimitedEnabled ?? true,
       source: "database",
     };
   }
@@ -53,6 +55,7 @@ export async function getFraudLimits(): Promise<FraudLimits> {
     registrationMaxPerIp: env.registrationMaxPerIp,
     maxUnverifiedPerIp: env.maxUnverifiedPerIp,
     trialServerEnabled: env.trialServerEnabled,
+    creatorUnlimitedEnabled: true,
     source: hasEnv ? "env" : "default",
   };
 }
@@ -66,6 +69,7 @@ export async function updateFraudLimits(input: {
   registrationMaxPerIp: number;
   maxUnverifiedPerIp: number;
   trialServerEnabled?: boolean;
+  creatorUnlimitedEnabled?: boolean;
 }) {
   const registrationMaxPerIp = clampLimit(input.registrationMaxPerIp, DEFAULT_MAX_PER_IP);
   const maxUnverifiedPerIp = clampLimit(input.maxUnverifiedPerIp, DEFAULT_MAX_UNVERIFIED);
@@ -79,6 +83,10 @@ export async function updateFraudLimits(input: {
     typeof input.trialServerEnabled === "boolean"
       ? input.trialServerEnabled
       : (existing?.trialServerEnabled ?? true);
+  const creatorUnlimitedEnabled =
+    typeof input.creatorUnlimitedEnabled === "boolean"
+      ? input.creatorUnlimitedEnabled
+      : (existing?.creatorUnlimitedEnabled ?? true);
 
   await db
     .insert(schema.platformSettings)
@@ -87,14 +95,31 @@ export async function updateFraudLimits(input: {
       registrationMaxPerIp,
       maxUnverifiedPerIp,
       trialServerEnabled,
+      creatorUnlimitedEnabled,
       updatedAt: now,
     })
     .onConflictDoUpdate({
       target: schema.platformSettings.id,
-      set: { registrationMaxPerIp, maxUnverifiedPerIp, trialServerEnabled, updatedAt: now },
+      set: {
+        registrationMaxPerIp,
+        maxUnverifiedPerIp,
+        trialServerEnabled,
+        creatorUnlimitedEnabled,
+        updatedAt: now,
+      },
     });
 
-  return { registrationMaxPerIp, maxUnverifiedPerIp, trialServerEnabled };
+  return { registrationMaxPerIp, maxUnverifiedPerIp, trialServerEnabled, creatorUnlimitedEnabled };
+}
+
+export async function updateCreatorUnlimitedEnabled(enabled: boolean) {
+  const limits = await getFraudLimits();
+  return updateFraudLimits({
+    registrationMaxPerIp: limits.registrationMaxPerIp,
+    maxUnverifiedPerIp: limits.maxUnverifiedPerIp,
+    trialServerEnabled: limits.trialServerEnabled,
+    creatorUnlimitedEnabled: enabled,
+  });
 }
 
 export async function updateTrialServerEnabled(enabled: boolean) {

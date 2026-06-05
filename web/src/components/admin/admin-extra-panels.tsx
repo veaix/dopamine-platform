@@ -2,7 +2,74 @@
 
 import { useEffect, useState } from "react";
 
-export function AdminDashboardPanel() {
+export function AdminCreatorUnlimitedPanel() {
+  const [enabled, setEnabled] = useState(true);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [msg, setMsg] = useState("");
+  const [err, setErr] = useState("");
+
+  useEffect(() => {
+    void fetch("/api/creator/unlimited")
+      .then(async (r) => {
+        const d = await r.json();
+        if (!r.ok) {
+          setErr(d.error ?? "Ошибка загрузки");
+          return;
+        }
+        setEnabled(Boolean(d.enabled));
+      })
+      .catch(() => setErr("Не удалось загрузить настройку"))
+      .finally(() => setLoading(false));
+  }, []);
+
+  async function save(next: boolean) {
+    setSaving(true);
+    setMsg("");
+    setErr("");
+    try {
+      const r = await fetch("/api/creator/unlimited", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ enabled: next }),
+      });
+      const d = await r.json();
+      if (!r.ok) {
+        setErr(d.error ?? "Ошибка сохранения");
+        return;
+      }
+      setEnabled(Boolean(d.enabled));
+      setMsg(d.enabled ? "Безлимит включён" : "Безлимит выключен — обычные лимиты");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (loading) return null;
+
+  return (
+    <section className="card stack sm">
+      <h2>Режим создателя</h2>
+      <p className="muted">
+        Когда включено: у аккаунта <strong>creator</strong> бесконечные монеты, слоты серверов и создание
+        серверов без списаний. Выключите, чтобы проверить обычный опыт пользователя.
+      </p>
+      <label className="row" style={{ alignItems: "center", gap: "0.5rem" }}>
+        <input
+          type="checkbox"
+          checked={enabled}
+          disabled={saving}
+          onChange={(e) => void save(e.target.checked)}
+        />
+        <span>Безлимит для создателя</span>
+      </label>
+      {err ? <p className="error">{err}</p> : null}
+      {msg ? <p className="info">{msg}</p> : null}
+    </section>
+  );
+}
+
+export function AdminDashboardPanel({ isCreator = false }: { isCreator?: boolean }) {
   const [stats, setStats] = useState<Record<string, unknown> | null>(null);
 
   useEffect(() => {
@@ -19,6 +86,7 @@ export function AdminDashboardPanel() {
 
   return (
     <section className="stack">
+      {isCreator ? <AdminCreatorUnlimitedPanel /> : null}
       <div className="grid stats">
         <div className="card stat">
           <span>Всего пользователей</span>

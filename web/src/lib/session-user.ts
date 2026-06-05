@@ -9,6 +9,7 @@ export type SessionUser = {
   coinsBalance: number;
   availableServerSlots: number;
   playtimeSeconds: number;
+  creatorUnlimited?: boolean;
 };
 
 export function toSessionUser(user: {

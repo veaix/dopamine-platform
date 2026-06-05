@@ -316,6 +316,9 @@ export const platformSettings = sqliteTable("platform_settings", {
   registrationMaxPerIp: integer("registration_max_per_ip").notNull().default(3),
   maxUnverifiedPerIp: integer("max_unverified_per_ip").notNull().default(5),
   trialServerEnabled: integer("trial_server_enabled", { mode: "boolean" }).notNull().default(true),
+  creatorUnlimitedEnabled: integer("creator_unlimited_enabled", { mode: "boolean" })
+    .notNull()
+    .default(true),
   updatedAt: integer("updated_at", { mode: "timestamp" })
     .notNull()
     .default(sql`CURRENT_TIMESTAMP`),

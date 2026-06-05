@@ -70,7 +70,8 @@ export function UserMenu() {
           <div className="user-menu-head">
             <strong>{user.nickname}</strong>
             <span className="muted">
-              {user.coinsBalance} монет · {user.availableServerSlots} слотов
+              {user.creatorUnlimited ? "∞" : user.coinsBalance} монет ·{" "}
+              {user.creatorUnlimited ? "∞" : user.availableServerSlots} слотов
             </span>
           </div>
 

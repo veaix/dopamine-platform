@@ -6,6 +6,7 @@ import { getOwnedGiftKeys } from "@/server/keys/inventory";
 import { newId } from "@/server/utils/ids";
 import { json, err } from "@/lib/api";
 import { deductCoins } from "@/server/economy/deduct-coins";
+import { hasCreatorUnlimited } from "@/server/creator-unlimited";
 
 export async function GET() {
   const user = await getCurrentUser();
@@ -18,15 +19,18 @@ export async function POST() {
   const user = await getCurrentUser();
   if (!user) return err("Требуется вход", 401);
 
-  if (user.coinsBalance < GIFT_KEY_PRICE) {
+  const unlimited = await hasCreatorUnlimited(user);
+  if (!unlimited && user.coinsBalance < GIFT_KEY_PRICE) {
     return err(`Недостаточно монет (нужно ${GIFT_KEY_PRICE})`, 400);
   }
 
   const code = makeActivationKeyCode("GFT");
   const keyId = newId();
 
-  const deducted = await deductCoins(user.id, GIFT_KEY_PRICE);
-  if (!deducted) return err(`Недостаточно монет (нужно ${GIFT_KEY_PRICE})`, 400);
+  if (!unlimited) {
+    const deducted = await deductCoins(user.id, GIFT_KEY_PRICE);
+    if (!deducted) return err(`Недостаточно монет (нужно ${GIFT_KEY_PRICE})`, 400);
+  }
 
   await db.insert(schema.activationKeys).values({
     id: keyId,
@@ -39,14 +43,21 @@ export async function POST() {
     ownerUserId: user.id,
   });
 
-  await db.insert(schema.coinLedger).values({
-    id: newId(),
-    userId: user.id,
-    amount: -GIFT_KEY_PRICE,
-    reason: "gift_key_purchase",
-    refType: "activation_key",
-    refId: keyId,
-  });
+  if (!unlimited) {
+    await db.insert(schema.coinLedger).values({
+      id: newId(),
+      userId: user.id,
+      amount: -GIFT_KEY_PRICE,
+      reason: "gift_key_purchase",
+      refType: "activation_key",
+      refId: keyId,
+    });
+  }
 
-  return json({ ok: true, key: { id: keyId, grantServers: 1 }, price: GIFT_KEY_PRICE });
+  return json({
+    ok: true,
+    key: { id: keyId, grantServers: 1 },
+    price: unlimited ? 0 : GIFT_KEY_PRICE,
+    creatorUnlimited: unlimited,
+  });
 }

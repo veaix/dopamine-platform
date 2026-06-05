@@ -380,6 +380,8 @@ function DashboardInner({ initialMe, initialFriends, initialOwnedKeys, loadExtra
 
             trial={me.trial}
 
+            creatorUnlimited={me.creatorUnlimited}
+
             initialOwnedKeys={ownedKeys}
 
             initialPromoCode={refPromo}

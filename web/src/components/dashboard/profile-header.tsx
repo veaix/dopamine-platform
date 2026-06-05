@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { DashboardUser } from "@/server/dashboard/profile";
 import { AvatarImg } from "@/components/avatar-img";
+import { formatEconomyDisplay } from "@/lib/creator-display";
 
 export function ProfileHeader({ me }: { me: DashboardUser }) {
   const hours = Math.floor(me.playtimeSeconds / 3600);
@@ -26,11 +27,11 @@ export function ProfileHeader({ me }: { me: DashboardUser }) {
       <div className="dash-stats">
         <div className="dash-stat">
           <span>Монеты</span>
-          <strong>{me.coinsBalance}</strong>
+          <strong>{formatEconomyDisplay(me.coinsBalance, Boolean(me.creatorUnlimited))}</strong>
         </div>
         <div className="dash-stat">
           <span>Слоты серверов</span>
-          <strong>{me.availableServerSlots}</strong>
+          <strong>{formatEconomyDisplay(me.availableServerSlots, Boolean(me.creatorUnlimited))}</strong>
         </div>
         <div className="dash-stat">
           <span>Часы в лаунчере</span>

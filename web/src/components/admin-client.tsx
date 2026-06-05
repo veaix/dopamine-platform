@@ -137,7 +137,7 @@ export function AdminClient({ initialShell }: { initialShell: AdminShellProps })
       {error ? <p className="error">{error}</p> : null}
       {msg ? <p className="info">{msg}</p> : null}
 
-      {tab === "dashboard" ? <AdminDashboardPanel /> : null}
+      {tab === "dashboard" ? <AdminDashboardPanel isCreator={isCreator} /> : null}
       {tab === "audit" ? <AdminAuditPanel /> : null}
       {tab === "email" ? <AdminEmailPanel onMsg={setMsg} onError={setError} /> : null}
       {tab === "fraud" ? <AdminFraudPanel /> : null}

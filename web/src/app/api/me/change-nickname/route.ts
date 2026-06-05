@@ -7,6 +7,7 @@ import { validateNickname } from "@/lib/nickname";
 import { NICKNAME_CHANGE_COINS } from "@/server/dashboard/profile";
 import { isNicknameTaken } from "@/server/auth/pending-registration";
 import { deductCoins } from "@/server/economy/deduct-coins";
+import { hasCreatorUnlimited } from "@/server/creator-unlimited";
 
 export async function POST(request: Request) {
   const user = await getCurrentUser();
@@ -22,21 +23,24 @@ export async function POST(request: Request) {
 
   if (await isNicknameTaken(nickname!, { exceptUserId: user.id })) return err("Ник уже занят", 409);
 
-  if (user.coinsBalance < NICKNAME_CHANGE_COINS) {
+  const unlimited = await hasCreatorUnlimited(user);
+  if (!unlimited && user.coinsBalance < NICKNAME_CHANGE_COINS) {
     return err(`Нужно ${NICKNAME_CHANGE_COINS} монет`, 400);
   }
 
-  const deducted = await deductCoins(user.id, NICKNAME_CHANGE_COINS);
-  if (!deducted) return err(`Нужно ${NICKNAME_CHANGE_COINS} монет`, 400);
+  const deducted = await deductCoins(user.id, unlimited ? 0 : NICKNAME_CHANGE_COINS);
+  if (!unlimited && !deducted) return err(`Нужно ${NICKNAME_CHANGE_COINS} монет`, 400);
 
   await db.update(schema.users).set({ nickname, updatedAt: new Date() }).where(eq(schema.users.id, user.id));
 
-  await db.insert(schema.coinLedger).values({
-    id: newId(),
-    userId: user.id,
-    amount: -NICKNAME_CHANGE_COINS,
-    reason: "nickname_change",
-  });
+  if (!unlimited) {
+    await db.insert(schema.coinLedger).values({
+      id: newId(),
+      userId: user.id,
+      amount: -NICKNAME_CHANGE_COINS,
+      reason: "nickname_change",
+    });
+  }
 
-  return json({ ok: true, nickname, coinsSpent: NICKNAME_CHANGE_COINS });
+  return json({ ok: true, nickname, coinsSpent: unlimited ? 0 : NICKNAME_CHANGE_COINS });
 }

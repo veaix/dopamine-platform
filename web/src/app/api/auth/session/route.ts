@@ -1,7 +1,7 @@
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { authCookieName, getCurrentUser } from "@/server/auth/session";
-import { toSessionUser } from "@/lib/session-user";
+import { buildSessionUser } from "@/server/build-session-user";
 
 export async function GET() {
   const cookieStore = await cookies();
@@ -17,7 +17,7 @@ export async function GET() {
   }
 
   return NextResponse.json(
-    { user: toSessionUser(user) },
+    { user: await buildSessionUser(user) },
     { headers: { "Cache-Control": "private, no-store" } },
   );
 }

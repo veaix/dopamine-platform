@@ -3,6 +3,11 @@ import { eq } from "drizzle-orm";
 import { db } from "@/server/db";
 import { getProfileReactionCounts } from "@/lib/profile-stats";
 import { getTrialServerInfoForUser, type TrialServerInfo } from "@/server/trial-server";
+import {
+  applyCreatorEconomyDisplay,
+  creatorUnlimitedTrialInfo,
+  hasCreatorUnlimited,
+} from "@/server/creator-unlimited";
 import { avatarVersionKey } from "@/lib/avatar-url";
 import { parseSocialLinks } from "@/lib/social";
 import type { DashboardUserRow } from "@/server/dashboard/load-user";
@@ -31,6 +36,7 @@ export type DashboardUser = {
   bioEditCooldownHours: number;
   nicknameChangeCost: number;
   trial: TrialServerInfo;
+  creatorUnlimited: boolean;
 };
 
 const getCachedWelcomePromo = unstable_cache(
@@ -44,11 +50,17 @@ const getCachedWelcomePromo = unstable_cache(
 );
 
 export async function getDashboardUser(user: DashboardUserRow): Promise<DashboardUser> {
-  const [reactions, welcomePromo, trial] = await Promise.all([
+  const unlimited = await hasCreatorUnlimited(user);
+  const [reactions, welcomePromo, trialRaw] = await Promise.all([
     getProfileReactionCounts(user.id),
     getCachedWelcomePromo(),
-    getTrialServerInfoForUser(user),
+    unlimited ? Promise.resolve(creatorUnlimitedTrialInfo()) : getTrialServerInfoForUser(user),
   ]);
+  const trial = trialRaw;
+  const economy = applyCreatorEconomyDisplay(
+    { coinsBalance: user.coinsBalance, availableServerSlots: user.availableServerSlots },
+    unlimited,
+  );
 
   let welcomePromoRedeemed = false;
   if (welcomePromo) {
@@ -75,8 +87,8 @@ export async function getDashboardUser(user: DashboardUserRow): Promise<Dashboar
     avatarVersion: avatarVersionKey(user.hasAvatar, user.updatedAt),
     bio: user.bio,
     social: parseSocialLinks(user.socialLinksJson),
-    coinsBalance: user.coinsBalance,
-    availableServerSlots: user.availableServerSlots,
+    coinsBalance: economy.coinsBalance,
+    availableServerSlots: economy.availableServerSlots,
     playtimeSeconds: user.playtimeSeconds,
     totpEnabled: user.totpEnabled,
     likes,
@@ -87,5 +99,6 @@ export async function getDashboardUser(user: DashboardUserRow): Promise<Dashboar
     bioEditCooldownHours: canEditBio ? 0 : Math.ceil(bioCooldownLeft / (60 * 60 * 1000)),
     nicknameChangeCost: NICKNAME_CHANGE_COINS,
     trial,
+    creatorUnlimited: economy.creatorUnlimited,
   };
 }

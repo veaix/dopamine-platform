@@ -3,10 +3,20 @@ import { NextResponse } from "next/server";
 import { db, schema } from "@/server/db";
 import { getUserByDeviceToken } from "@/server/auth/device";
 import { getTrialServerInfoForUser } from "@/server/trial-server";
+import { creatorUnlimitedTrialInfo, hasCreatorUnlimited } from "@/server/creator-unlimited";
 
 export async function POST(request: Request) {
   const user = await getUserByDeviceToken(request);
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  if (await hasCreatorUnlimited(user)) {
+    const trial = creatorUnlimitedTrialInfo();
+    return NextResponse.json({
+      ok: true,
+      consumed: "slot" as const,
+      trialExpiresAt: trial.trialExpiresAt,
+    });
+  }
 
   const trial = await getTrialServerInfoForUser(user);
 

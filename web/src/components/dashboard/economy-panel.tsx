@@ -28,6 +28,7 @@ export function EconomyPanel({
   coinsBalance,
   serverSlots,
   trial,
+  creatorUnlimited = false,
   initialOwnedKeys,
   initialPromoCode = "",
   onUpdated,
@@ -35,6 +36,7 @@ export function EconomyPanel({
   coinsBalance: number;
   serverSlots: number;
   trial: TrialServerInfo;
+  creatorUnlimited?: boolean;
   initialOwnedKeys: OwnedGiftKey[];
   initialPromoCode?: string;
   onUpdated: () => void;
@@ -69,8 +71,10 @@ export function EconomyPanel({
   }, []);
 
   const totalCost = slotPrice * quantity;
-  const canAffordSlot = coinsBalance >= totalCost;
-  const canAffordKey = coinsBalance >= giftKeyPrice;
+  const canAffordSlot = creatorUnlimited || coinsBalance >= totalCost;
+  const canAffordKey = creatorUnlimited || coinsBalance >= giftKeyPrice;
+  const coinsLabel = creatorUnlimited ? "∞" : String(coinsBalance);
+  const slotsLabel = creatorUnlimited ? "∞" : String(serverSlots);
 
   function loadKeys() {
     void fetch("/api/economy/buy-gift-key")
@@ -209,6 +213,14 @@ export function EconomyPanel({
           </p>
         </section>
       ) : null}
+      {creatorUnlimited ? (
+        <section className="card dash-panel trial-banner">
+          <p className="info" style={{ margin: 0 }}>
+            Режим создателя: <strong>безлимит</strong> монет и слотов. Покупки и серверы не списывают баланс.
+            Выключить можно в админке → Обзор.
+          </p>
+        </section>
+      ) : null}
 
       <section className="card dash-panel">
         <div className="dash-panel-head">
@@ -255,7 +267,7 @@ export function EconomyPanel({
           </div>
           <div className="dash-balance-pill">
             <span>Баланс</span>
-            <strong>{coinsBalance} 🪙</strong>
+            <strong>{coinsLabel} 🪙</strong>
           </div>
         </div>
 
@@ -265,7 +277,7 @@ export function EconomyPanel({
           </button>
           {!canAffordKey ? (
             <p className="error" style={{ margin: 0 }}>
-              Не хватает {giftKeyPrice - coinsBalance} монет
+              {creatorUnlimited ? null : <>Не хватает {giftKeyPrice - coinsBalance} монет</>}
             </p>
           ) : null}
         </div>
@@ -314,7 +326,7 @@ export function EconomyPanel({
         <div className="dash-shop">
           <div className="dash-shop-info">
             <p>
-              Сейчас доступно слотов: <strong>{serverSlots}</strong>
+              Сейчас доступно слотов: <strong>{slotsLabel}</strong>
             </p>
             <p className="muted">Цена одного слота: {slotPrice} монет</p>
           </div>
@@ -364,7 +376,7 @@ export function EconomyPanel({
           </button>
           {!canAffordSlot ? (
             <p className="error" style={{ margin: 0 }}>
-              Не хватает {totalCost - coinsBalance} монет
+              {creatorUnlimited ? null : <>Не хватает {totalCost - coinsBalance} монет</>}
             </p>
           ) : null}
         </div>

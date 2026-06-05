@@ -155,13 +155,20 @@ export function ProfileEditPanel({ me, onUpdated }: { me: DashboardUser; onUpdat
 
       <section className="card dash-panel">
         <h2>Никнейм</h2>
-        <p className="muted">Смена ника стоит {me.nicknameChangeCost} монет. Баланс: {me.coinsBalance} 🪙</p>
+        <p className="muted">
+          Смена ника стоит {me.creatorUnlimited ? "0" : me.nicknameChangeCost} монет. Баланс:{" "}
+          {me.creatorUnlimited ? "∞" : me.coinsBalance} 🪙
+        </p>
         <div className="row">
           <input value={nickname} onChange={(e) => setNickname(e.target.value)} maxLength={NICKNAME_MAX_LENGTH} />
           <button
             type="button"
             className="btn"
-            disabled={busy || nickname.trim().toLowerCase() === me.nickname.toLowerCase() || me.coinsBalance < me.nicknameChangeCost}
+            disabled={
+              busy ||
+              nickname.trim().toLowerCase() === me.nickname.toLowerCase() ||
+              (!me.creatorUnlimited && me.coinsBalance < me.nicknameChangeCost)
+            }
             onClick={() => void changeNickname()}
           >
             Сменить за {me.nicknameChangeCost} 🪙

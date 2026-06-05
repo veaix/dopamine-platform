@@ -9,6 +9,7 @@ import { isEmailVerifiedForAuth } from "@/server/auth/email-verification";
 import { ensureTrialWindowStarted } from "@/server/trial-server";
 import { findUserByLoginIdentifier } from "@/server/users/lookup";
 import { issueLauncherDeviceToken } from "@/server/auth/device";
+import { applyCreatorEconomyDisplay, hasCreatorUnlimited } from "@/server/creator-unlimited";
 
 const LOGIN_LIMIT = 10;
 const LOGIN_WINDOW_MS = 15 * 60 * 1000;
@@ -64,6 +65,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Ошибка сервера при входе" }, { status: 500 });
   }
 
+  const unlimited = await hasCreatorUnlimited(user);
+  const economy = applyCreatorEconomyDisplay(
+    { coinsBalance: user.coinsBalance, availableServerSlots: user.availableServerSlots },
+    unlimited,
+  );
+
   return NextResponse.json({
     ok: true,
     token: rawToken,
@@ -71,9 +78,10 @@ export async function POST(request: Request) {
       id: user.id,
       nickname: user.nickname,
       avatarUrl: user.avatarUrl,
-      coinsBalance: user.coinsBalance,
-      availableServerSlots: user.availableServerSlots,
+      coinsBalance: economy.coinsBalance,
+      availableServerSlots: economy.availableServerSlots,
       playtimeSeconds: user.playtimeSeconds,
+      creatorUnlimited: economy.creatorUnlimited,
     },
   });
 }

@@ -4,6 +4,7 @@ import { db, schema } from "@/server/db";
 import { newId } from "@/server/utils/ids";
 import { json, err } from "@/lib/api";
 import { deductCoins } from "@/server/economy/deduct-coins";
+import { hasCreatorUnlimited, applyCreatorEconomyDisplay } from "@/server/creator-unlimited";
 
 export const SLOT_PRICE = Number(process.env.SERVER_SLOT_PRICE_COINS ?? 10);
 
@@ -14,6 +15,23 @@ export async function POST(request: Request) {
   const body = (await request.json().catch(() => null)) as { quantity?: number } | null;
   const quantity = Math.min(20, Math.max(1, Math.floor(body?.quantity ?? 1)));
   const totalCost = SLOT_PRICE * quantity;
+
+  const unlimited = await hasCreatorUnlimited(user);
+  if (unlimited) {
+    const economy = applyCreatorEconomyDisplay(
+      { coinsBalance: user.coinsBalance, availableServerSlots: user.availableServerSlots },
+      true,
+    );
+    return json({
+      ok: true,
+      quantity,
+      totalCost: 0,
+      slotPrice: SLOT_PRICE,
+      coinsBalance: economy.coinsBalance,
+      availableServerSlots: economy.availableServerSlots,
+      creatorUnlimited: true,
+    });
+  }
 
   if (user.coinsBalance < totalCost) {
     return err(`Недостаточно монет (нужно ${totalCost})`, 400);

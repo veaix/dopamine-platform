@@ -1,5 +1,6 @@
 import { and, eq, gt, isNotNull, sql } from "drizzle-orm";
 import { db, schema } from "@/server/db";
+import { hasCreatorUnlimited } from "@/server/creator-unlimited";
 
 export type ConsumedKind = "slot" | "trial";
 
@@ -7,6 +8,13 @@ export async function refundServerConsumption(
   userId: string,
   consumed: ConsumedKind,
 ): Promise<{ ok: boolean; error?: string }> {
+  const user = await db.query.users.findFirst({
+    where: (u, { eq: eqFn }) => eqFn(u.id, userId),
+    columns: { id: true, role: true },
+  });
+  if (user && (await hasCreatorUnlimited(user))) {
+    return { ok: true };
+  }
   if (consumed === "slot") {
     const rows = await db
       .update(schema.users)
