@@ -9,6 +9,7 @@ import {
   LAUNCHER_HEARTBEAT_MAX_SECONDS,
   LAUNCHER_HEARTBEAT_WINDOW_MS,
 } from "@/server/launcher/constants";
+import { ensureTrialWindowStarted, getTrialServerSyncInfo } from "@/server/trial-server";
 
 export async function POST(request: Request) {
   const user = await getUserByDeviceToken(request);
@@ -51,5 +52,10 @@ export async function POST(request: Request) {
     }
   }
 
-  return json({ ok: true });
+  await ensureTrialWindowStarted(user.id);
+
+  return json({
+    ok: true,
+    trial: getTrialServerSyncInfo(user),
+  });
 }
