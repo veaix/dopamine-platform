@@ -1,7 +1,7 @@
 {
   "framework": "nextjs",
   "installCommand": "npm install --workspaces=false",
-  "buildCommand": "node scripts/migrate-safe.mjs && next build",
+  "buildCommand": "node scripts/migrate-safe.mjs && node scripts/generate-icons.mjs && next build",
   "redirects": [
     {
       "source": "/:path*",
